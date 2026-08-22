@@ -29,8 +29,11 @@ export default {
   mutate: [
     'src/db/converters.ts',
     'src/db/backup.ts',
+    'src/features/*/catalog.ts',
     'src/features/*/domain.ts',
     'src/features/*/pace.ts',
+    'src/features/*/schedule.ts',
+    'src/features/*/types.ts',
     'src/lib/backupFile.ts',
     'src/lib/installPlatform.ts',
   ],
