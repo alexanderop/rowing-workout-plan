@@ -32,11 +32,21 @@ it links. Read the linked doc before the slice that touches it.
   `select-none`. `pnpm test:touch` is the only tier that sees a coarse pointer.
 - Conventional Commits with scope. `pnpm check` green before every commit.
 
-**Blocked on input** (does not stop slices 0–6):
+**Blocked on input** (does not stop slices 0–7):
 
-- **PM5 byte layouts.** Slice 7 cannot start from memory. Needs the *Concept2 PM
-  Bluetooth Smart Communication Interface Definition* PDF plus real frames
-  captured off the erg, committed as fixtures.
+- **PM5 byte layouts.** ~~Needs the *Concept2 PM Bluetooth Smart Communication
+  Interface Definition* PDF~~ — found and vendored at
+  `specs/reference/PM5_BluetoothSmartInterfaceDefinition.pdf` (revision 1.30),
+  which is the authority for every offset and scaling slices 8–11 decode. See
+  the README beside it for what it covers and why the mirror URL is the one
+  that works.
+- **Real frames captured off the erg**, committed as
+  `src/__tests__/fixtures/pm5/*.json`. Still outstanding, and not obtainable
+  from prior art: the published PM5 projects store *decoded* values rather than
+  the bytes they came from, so none of them substitutes for a capture. A
+  decoder tested only against its own author's reading of the document is
+  tested against nothing. Slice 8 can be **written** from the PDF; it cannot be
+  **trusted** until a captured 6×1k replays into the right splits.
 - **The pacing model.** Target-splits-from-your-2k is our invention, not Pete's.
   Slice 3 ships one table of offsets to argue about, in one place.
 
