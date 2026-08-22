@@ -33,6 +33,7 @@ export default {
     'src/features/*/domain.ts',
     'src/features/*/pace.ts',
     'src/features/*/schedule.ts',
+    'src/features/*/targets.ts',
     'src/features/*/types.ts',
     'src/lib/backupFile.ts',
     'src/lib/installPlatform.ts',
