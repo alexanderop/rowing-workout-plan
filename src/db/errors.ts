@@ -15,6 +15,42 @@ import { Schema } from 'effect'
  * code reads.
  */
 
+/** An IndexedDB operation failed (quota exceeded, private browsing, …). */
+export class DatabaseError extends Schema.TaggedError<DatabaseError>()('Db.DatabaseError', {
+  operation: Schema.String,
+  cause: Schema.Defect(),
+}) {}
+
+/**
+ * A draft broke a rule the row schema enforces — a benchmark with no time, a
+ * workout with a zero distance.
+ *
+ * One tag per table rather than one shared `RowInvalidError`, because the
+ * whole point of a tag is that a `catchTags` can branch on it: the benchmark
+ * form wants to say "that is not a time", and it cannot if the failure it
+ * catches might have come from a workout write it never made.
+ */
+export class BenchmarkInvalidError extends Schema.TaggedError<BenchmarkInvalidError>()(
+  'Db.BenchmarkInvalidError',
+  {
+    message: Schema.String,
+  },
+) {}
+
+export class EnrolmentInvalidError extends Schema.TaggedError<EnrolmentInvalidError>()(
+  'Db.EnrolmentInvalidError',
+  {
+    message: Schema.String,
+  },
+) {}
+
+export class WorkoutInvalidError extends Schema.TaggedError<WorkoutInvalidError>()(
+  'Db.WorkoutInvalidError',
+  {
+    message: Schema.String,
+  },
+) {}
+
 /** The payload handed to importData is not a backup this app understands. */
 export class BackupInvalidError extends Schema.TaggedError<BackupInvalidError>()(
   'Db.BackupInvalidError',

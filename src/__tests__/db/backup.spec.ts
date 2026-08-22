@@ -1,16 +1,17 @@
 import { Effect } from 'effect'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { exportData, importData, resetDatabase, runDb } from '@/db'
-import { EMPTY_BACKUP } from '../helpers/backup'
+import { EMPTY_BACKUP, FULL_BACKUP } from '../helpers/backup'
 
 /**
- * The backup round trip against real IndexedDB. The database has no tables
- * yet — the notes worked example was removed and the training tables land in
- * their own slice — so what this proves today is the envelope: an export
- * decodes as an import, and anything else is refused by tag rather than
- * half-applied. A table added later is added to these assertions in the same
- * commit, which is the point of keeping the spec rather than deleting it with
- * the rows it used to carry.
+ * The backup round trip against real IndexedDB.
+ *
+ * The unit tier drives the same programs over the in-memory repositories, so
+ * what this one adds is the storage engine's opinion: that every row a
+ * repository writes comes back through a wipe and a re-import byte for byte,
+ * nested interval arrays included. That is the promise a local-first app
+ * makes — the backup file is the only copy — so it is asserted against the
+ * real store, not a fake.
  */
 describe('backup export/import', () => {
   beforeEach(async () => {
@@ -18,7 +19,10 @@ describe('backup export/import', () => {
   })
 
   it('round-trips an export back through import', async () => {
-    const payload = await runDb(exportData)
+    // `orDie` says a storage failure here would be a broken premise rather
+    // than the assertion under test; the tagged path is exercised in the
+    // repository specs.
+    const payload = await runDb(exportData.pipe(Effect.orDie))
 
     expect(payload).toMatchObject({ app: 'vue-pwa-starter' })
     expect(payload.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
@@ -35,6 +39,28 @@ describe('backup export/import', () => {
     // so a version bump that forgets one of them fails here rather than
     // passing because both sides moved together.
     await runDb(importData(EMPTY_BACKUP).pipe(Effect.orDie))
+  })
+
+  it('survives a workout being written, exported, wiped and re-imported', async () => {
+    // The whole contract of a local-first app in one test: the file is the
+    // only copy, so what comes back has to be what went in.
+    await runDb(importData(FULL_BACKUP).pipe(Effect.orDie))
+    const exported = await runDb(exportData.pipe(Effect.orDie))
+
+    await resetDatabase()
+    expect(await runDb(exportData.pipe(Effect.orDie))).toMatchObject({
+      benchmarks: [],
+      enrolments: [],
+      workouts: [],
+    })
+
+    await runDb(importData(exported).pipe(Effect.orDie))
+    const restored = await runDb(exportData.pipe(Effect.orDie))
+
+    expect(restored.benchmarks).toEqual(exported.benchmarks)
+    expect(restored.enrolments).toEqual(exported.enrolments)
+    expect(restored.workouts).toEqual(exported.workouts)
+    expect(restored.workouts[0].intervals).toHaveLength(2)
   })
 
   it('rejects payloads that are not backups with a tagged error', async () => {

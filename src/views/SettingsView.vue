@@ -74,7 +74,10 @@ function handleExport(): Promise<void> {
   return runDb(
     exportData.pipe(
       Effect.flatMap(downloadBackup),
-      Effect.catchTags({ 'BackupFile.BackupFileError': failed }),
+      // Reading the tables can fail too now that there are tables. It gets
+      // the same message as a failed download: from the user's side both are
+      // "the backup you asked for did not happen".
+      Effect.catchTags({ 'Db.DatabaseError': failed, 'BackupFile.BackupFileError': failed }),
     ),
   )
 }
@@ -102,6 +105,7 @@ async function handleImportFile(event: Event): Promise<void> {
       Effect.tap(() => Effect.sync(() => toast.showToast(t('settings.data.importSuccess')))),
       Effect.catchTags({
         'Db.BackupInvalidError': reportFailure('import backup', t('settings.data.invalidBackup')),
+        'Db.DatabaseError': failed,
         'BackupFile.BackupFileError': failed,
       }),
     ),

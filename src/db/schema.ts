@@ -1,28 +1,46 @@
-import Dexie from 'dexie'
+import Dexie, { type Table } from 'dexie'
+import type { StoredDbBenchmark, StoredDbPlanEnrolment, StoredDbWorkout } from './converters'
 
 /**
- * Dexie tables and migrations.
+ * Dexie tables and migrations. The *shape* of a row lives in `converters.ts`,
+ * as a Schema this file's table typing derives from — a type here and a
+ * schema there would be two descriptions of the same row, free to drift.
  *
- * The database is empty: the notes worked example was removed and the
- * training tables (workouts, plan enrolments, benchmarks) land in their own
- * slice. Version 1 is therefore declared with no object stores — Dexie still
- * needs a version to open against, and starting the training tables on this
- * version keeps them a fresh install rather than a migration from a shape
- * nobody ever shipped.
+ * Every table is typed `Stored*`, not the domain shape: what comes back from
+ * disk may be missing a field a later version added, and keeping the stored
+ * type honest about optionality is what makes the compiler enforce that reads
+ * go through the decode-and-normalize path in `converters.ts` rather than
+ * trusting the row.
  *
- * The *shape* of a row belongs in `converters.ts` as a Schema this file's
- * table typing derives from, never as a type declared here: two descriptions
- * of one row are free to drift. See docs/local-first.md.
+ * All three tables are declared on version 1. This is a fresh install, not a
+ * migration: the notes worked example was removed before any training data
+ * existed, so there is no shipped shape to upgrade from and an `upgrade()`
+ * here would be migrating rows that have never been written. When one of
+ * these *does* change, that is when the version bumps — see
+ * docs/adding-a-feature.md.
+ *
+ * Indexes are the queries, not the fields. `workouts` is indexed by
+ * `startedAt` because the log reads newest-first, and by `planSessionId`
+ * because "which sessions of this plan are done" is the question the whole
+ * schedule is derived from and it must not be a full scan.
  */
-class StarterDatabase extends Dexie {
+class TrainerDatabase extends Dexie {
+  benchmarks!: Table<StoredDbBenchmark, string>
+  enrolments!: Table<StoredDbPlanEnrolment, string>
+  workouts!: Table<StoredDbWorkout, string>
+
   constructor() {
     super('vue-pwa-starter')
 
-    this.version(1).stores({})
+    this.version(1).stores({
+      benchmarks: 'id, recordedAt',
+      enrolments: 'id, planId',
+      workouts: 'id, startedAt, planSessionId',
+    })
   }
 }
 
-const db = new StarterDatabase()
+export const db = new TrainerDatabase()
 
 /**
  * Deletes and reopens the database. Used by tests for isolation; also the

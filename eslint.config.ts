@@ -243,6 +243,7 @@ const NO_APP_STATE = {
 
 /** Pure decisions. No clock, no platform, no reactivity — and no cap on how hard they think. */
 export const CORE = [
+  'src/db/converters.ts',
   'src/features/*/catalog.ts',
   'src/features/*/domain.ts',
   'src/features/*/pace.ts',

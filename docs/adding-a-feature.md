@@ -12,10 +12,10 @@ The notes feature (`src/features/notes`) is the worked example, and this walkthr
 
 ## 1. Storage (if the feature persists data)
 
-- Define the row in `src/db/converters.ts` as a `Schema.Struct` plus a same-name `interface`, with a `Stored*` variant whose old-shape fields are `Schema.optionalKey`. The schema is the source of truth: Dexie's table typing, the read-path decode, and backup validation all derive from it, so they cannot drift.
+- Define the row in `src/db/converters.ts` as a `Schema.Struct` plus a same-name `interface`, with a `Stored*` variant whose old-shape fields are `Schema.optionalKey`. The schema is the source of truth: Dexie's table typing, the read-path decode, and backup validation all derive from it, so they cannot drift. The three training rows (`Benchmark`, `PlanEnrolment`, `Workout`) are the worked example; `StoredDbWorkout` is the one that shows a relaxed field and its backfill.
 - Add the table to `src/db/schema.ts`, typed from that schema. New table on a fresh install? Just add it to the **current** version's `stores()`. Changing an existing table? Bump the version, write an `upgrade()`, and relax the changed fields in the `Stored*` schema (see the v1→v2 example).
 - Add a converter in `src/db/converters.ts`. Reads have to produce complete domain objects from any historical shape.
-- Add a repository in `src/db/repositories/` and re-export it from `src/db/index.ts`. Nothing outside `src/db` may import deeper than the index; ESLint fails on the import and the arch tests fail your PR. Reads decode every row; writes validate their input. Both fail with tagged errors, not exceptions.
+- Add a repository in `src/db/repositories/` (`workouts.ts` is the template) and re-export it from `src/db/index.ts`. Merge its `Layer` into `src/db/layer.ts` and nowhere else, and give it a `testLayer` there too, so a program over it runs in the Node unit tier. Nothing outside `src/db` may import deeper than the index; ESLint fails on the import and the arch tests fail your PR. Reads decode every row; writes validate their input. Both fail with tagged errors, not exceptions.
 - Add the table to `src/db/backup.ts` in the same commit, reusing the same `Stored*` schema.
 - **Tests**: schema decode and converter go in the unit tier; repository CRUD, rejected rows, and the backup round-trip go in `src/__tests__/db/`.
 
