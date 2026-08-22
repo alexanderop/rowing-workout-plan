@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
+import { RouteNames } from '@/router'
 import { positionFor } from '../schedule'
 import type { Plan } from '../types'
 
@@ -24,9 +26,22 @@ const percent = computed(() =>
 </script>
 
 <template>
-  <article class="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-xs">
+  <!-- The card is the way into the plan, so the card is the link — a "view
+       week" button in the corner would be a 44px target inside a 90px one
+       that does nothing. The plan name is a <p> rather than a heading for the
+       same reason it is on the browse card: a heading inside a link outlines
+       a document section that does not exist, and the link's own label is
+       what a screen reader reads out. -->
+  <RouterLink
+    :to="{
+      name: RouteNames.planWeek,
+      params: { planId: plan.id, week: position.weekIndex },
+    }"
+    :aria-label="t('plans.active.open', { week: position.weekIndex, name: plan.name })"
+    class="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-xs select-none touch-manipulation transition-[background-color,scale] duration-100 active:scale-[0.99]"
+  >
     <div class="flex flex-col gap-0.5">
-      <h3 class="font-semibold">{{ plan.name }}</h3>
+      <p class="font-semibold">{{ plan.name }}</p>
       <p class="text-xs text-muted-foreground">
         {{
           t('plans.active.progress', {
@@ -41,9 +56,8 @@ const percent = computed(() =>
 
     <!-- A native <progress> would be the obvious element and is the one thing
          here that cannot be styled consistently across engines; the ARIA role
-         gives a screen reader the same information. `aria-valuetext` carries
-         the sentence above so the bar is not announced as a bare percentage
-         with no unit. -->
+         gives a screen reader the same information, counted in sessions
+         rather than in percent so "23 of 71" is what gets announced. -->
     <div
       role="progressbar"
       :aria-label="t('plans.active.progressLabel')"
@@ -54,5 +68,5 @@ const percent = computed(() =>
     >
       <div class="h-full rounded-full bg-primary" :style="{ width: `${percent}%` }"></div>
     </div>
-  </article>
+  </RouterLink>
 </template>

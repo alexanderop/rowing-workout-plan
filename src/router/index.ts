@@ -3,6 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 export const RouteNames = {
   plans: 'plans',
+  planWeek: 'plan-week',
+  session: 'session',
   settings: 'settings',
 } as const
 
@@ -28,6 +30,22 @@ const routes: Array<RouteRecordRaw> = [
     path: '/plans',
     name: RouteNames.plans,
     component: () => import('@/views/PlansView.vue'),
+  },
+  {
+    // The week is in the path rather than in a query or in component state:
+    // a rower comparing week 3 with week 6 wants two tabs, and the back
+    // button out of a session has to land on the week it came from.
+    path: '/plans/:planId/weeks/:week',
+    name: RouteNames.planWeek,
+    component: () => import('@/views/PlanWeekView.vue'),
+  },
+  {
+    // Not nested under its plan: a session id already names exactly one
+    // session in exactly one plan, so a second copy of that in the path
+    // would be a second thing that can disagree.
+    path: '/sessions/:sessionId',
+    name: RouteNames.session,
+    component: () => import('@/views/SessionView.vue'),
   },
   {
     path: '/settings',

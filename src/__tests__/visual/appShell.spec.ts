@@ -41,6 +41,19 @@ describe('visual regression', () => {
   })
 
   /**
+   * The densest screen in the app, and the one whose geometry is most likely
+   * to break silently: a horizontally scrolling strip inside a padded column,
+   * six rows each balancing three columns of text, and a target that is
+   * sometimes a number and sometimes a range twice as wide.
+   */
+  it('plan week, light', async ({ planWeek }) => {
+    const screen = await planWeek('pete5k', 3, { benchmark2kMs: 424_200, planId: 'pete5k' })
+    await screen.expectReady(3)
+
+    await expect(screen.root).toMatchScreenshot('plan-week-light')
+  })
+
+  /**
    * A dialog has its own baseline because it had none, and that is exactly
    * how every bottom sheet in the app shipped with zero bottom padding: the
    * two baselines above are a screen with nothing open over it, so a visually

@@ -25,6 +25,7 @@ const de: MessageSchema = {
       heading: 'Aktiver Plan',
       progress: 'Woche {week} von {weeks} · {done} von {total} Einheiten erledigt',
       progressLabel: 'Erledigte Einheiten',
+      open: 'Woche {week} von {name} öffnen',
     },
     browse: {
       heading: 'Auswählen',
@@ -46,6 +47,59 @@ const de: MessageSchema = {
     toast: {
       enrolled: 'Du bist auf {name}',
       enrolFailed: 'Dieser Plan konnte nicht gestartet werden',
+    },
+    session: {
+      steady: '{distance}+ locker',
+      intervals: '{reps} × {distance} / {rest} Pause',
+      piece: '{distance}',
+    },
+    kind: {
+      steady: 'Aerobe Distanz',
+      shortRest: 'Intervalle mit kurzer Pause',
+      longRest: 'Intervalle mit langer Pause',
+      pacedTwoK: 'Gesteuerte 2k, außen locker',
+      distancePiece: 'Harte Distanz',
+    },
+    rotation: {
+      first:
+        'Erste Woche von Zyklus {rotation} — die kürzesten Intervalle des Zyklus, und die schnellsten.',
+      middle: 'Zweite Woche von Zyklus {rotation} — die Intervalle werden länger, das Ziel bleibt.',
+      last: 'Letzte Woche von Zyklus {rotation} — die Intervalle sind am längsten. Ab Woche {nextWeek} beginnt der Zyklus eine Spur schneller von vorn.',
+      final: 'Letzte Woche des Plans. Zyklus {rotation} endet hier.',
+    },
+    coach: {
+      first:
+        'Die kürzesten Intervalle dieses Zyklus, mit dem schnellsten Ziel. Es geht um das Tempo, nicht um die Anstrengung.',
+      middle: 'Längere Intervalle als letzte Woche, gleiches Ziel. Halte es.',
+      last: 'Halte dieses Tempo, während die Intervalle länger werden. Im nächsten Zyklus eine Zehntel schneller.',
+      final: 'Das letzte davon im Plan. Halte das Ziel und schließe den Zyklus ab.',
+    },
+    week: {
+      title: 'Woche {week}',
+      summary: '{sessions} Einheiten · rund {km} km · {done} erledigt',
+      strip: 'Wochen von {name}',
+      open: 'Woche {week}',
+      notFound: 'Diese Woche gehört nicht zu diesem Plan',
+    },
+    target: {
+      label: 'Ziel',
+      band: '{lower}–{upper}',
+      done: 'Erledigt',
+    },
+    detail: {
+      position: 'Woche {week} · Einheit {position} von {sessions}',
+      targets: 'Ziele aus deiner 2k-Zeit von {time}',
+      splitLabel: 'Tempo /500m',
+      rateLabel: 'Frequenz spm',
+      powerLabel: 'Ø Leistung',
+      rate: '{low}–{high}',
+      watts: '{watts} W',
+      pieces: 'Abschnitte',
+      rest: '{rest} Pause zwischen den Intervallen',
+      rep: 'Intervall {index}',
+      notFound: 'Diese Einheit gehört zu keinem Plan',
+      noBenchmark:
+        'Trage deine 2k-Zeit auf der Plan-Seite ein, dann bekommt diese Einheit ihre Ziele.',
     },
   },
   benchmark: {

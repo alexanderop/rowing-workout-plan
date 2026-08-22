@@ -78,6 +78,16 @@ export abstract class AppScreen {
   }
 
   /**
+   * The screen's own failure state — a load that did not come back, a route
+   * naming something the catalogue does not have. Every screen renders one
+   * the same way (`role="alert"`), so it belongs here rather than being
+   * re-declared per screen.
+   */
+  get error(): Locator {
+    return page.getByRole('alert')
+  }
+
+  /**
    * Toasts render in a viewport outside the screen's own markup, so they are
    * queried from the page rather than from `container`.
    */

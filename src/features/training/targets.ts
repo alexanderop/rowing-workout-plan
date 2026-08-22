@@ -1,6 +1,6 @@
 import { Result } from 'effect'
 
-import { PaceRangeError, splitFor, wattsFromSplit } from './pace'
+import { formatSplit, paceBand, PaceRangeError, splitFor, wattsFromSplit } from './pace'
 import type { Rotation } from './schedule'
 import type { PlanSession, SessionKind } from './types'
 
@@ -188,6 +188,55 @@ function pacedTwoKReps(
     const reps = session.reps ?? 1
     const middle = Math.floor(reps / 2)
     return Array.from({ length: reps }, (_unused, index) => (index === middle ? test : easy))
+  })
+}
+
+/**
+ * Whether this kind's target moves as the rotations go by.
+ *
+ * The interval kinds do — a rotation is a tenth of a second faster than the
+ * one before it, which is the whole progression the plan is built on — and
+ * the rest do not. Screens ask because the coaching note only makes sense for
+ * a session whose target will actually have moved by next time; telling a
+ * rower to take a tenth off their steady rows is telling them to stop rowing
+ * steady.
+ */
+export function isRotationShifted(kind: SessionKind): boolean {
+  return ROTATION_SHIFTED_KINDS.has(kind)
+}
+
+/**
+ * How much either side of a steady target still counts as steady.
+ *
+ * Two seconds, which is the window the design canvas prints (2:04–2:08 around
+ * a 2:06 target). Steady is the only kind quoted as a range rather than a
+ * number, and deliberately: an interval target is a number to hit, while
+ * aerobic work is a zone, and a rower holding 2:06.0 exactly for 10 km is
+ * either a machine or not going steady.
+ */
+const STEADY_TOLERANCE_MS = 2_000
+
+/** The two edges of the steady window, as the splits a screen prints. */
+export interface SteadyBandText {
+  readonly lower: string
+  readonly upper: string
+}
+
+/**
+ * The window a steady session is rowed inside, already written out.
+ *
+ * Formatted here rather than returned as milliseconds because both edges go
+ * into one message (`2:04–2:08`) and a component assembling that from two
+ * `Result`s is three lines of plumbing per screen that shows a steady row.
+ * `lower` is the faster edge, as everywhere else a split is a duration.
+ */
+export function steadyBandText(splitMs: number): Result.Result<SteadyBandText, PaceRangeError> {
+  return Result.gen(function* () {
+    const band = yield* paceBand(splitMs, STEADY_TOLERANCE_MS)
+    const lower = yield* formatSplit(band.lower)
+    const upper = yield* formatSplit(band.upper)
+
+    return { lower, upper }
   })
 }
 

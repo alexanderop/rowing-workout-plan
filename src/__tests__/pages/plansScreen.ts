@@ -33,9 +33,18 @@ export class PlansScreen extends AppScreen {
     return page.getByRole('heading', { name: 'Start with a 2k', level: 2 })
   }
 
-  /** The card naming the plan you are on. Absent until you enrol. */
-  activePlan(name: string): Locator {
-    return page.getByRole('heading', { name, level: 3 })
+  /**
+   * The card naming the plan you are on, which is also the way into it.
+   * Located by the link's own label rather than by its text: the card is one
+   * control, so what a screen reader announces is what a test should ask for.
+   */
+  activePlan(week: number, name: string): Locator {
+    return page.getByRole('link', { name: `Open week ${week} of ${name}` })
+  }
+
+  /** Follow the active card into the week it points at. */
+  async openActivePlan(week: number, name: string): Promise<void> {
+    await this.activePlan(week, name).click()
   }
 
   /** What stands in for the active card before you have enrolled. */

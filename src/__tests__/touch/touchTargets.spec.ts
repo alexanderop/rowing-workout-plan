@@ -128,6 +128,17 @@ describe('touch targets', () => {
     expect(undersized, report(undersized)).toEqual([])
   })
 
+  it('clears the floor on a plan week', async ({ planWeek }) => {
+    // Twelve week chips and six session rows, all of them links rather than
+    // buttons — so none of them inherits AtomButton's floor and every one has
+    // to declare it.
+    const screen = await planWeek('pete5k', 3, { benchmark2kMs: 424_200 })
+    await screen.expectReady(3)
+
+    const undersized = undersizedControls(document.body)
+    expect(undersized, report(undersized)).toEqual([])
+  })
+
   it('clears the floor in a dialog', async ({ settings }) => {
     stubInstallPromptAvailable()
     await settings.install.expectVisible()

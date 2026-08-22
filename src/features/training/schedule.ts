@@ -133,3 +133,41 @@ export function rotationFor(weekIndex: number): Result.Result<Rotation, WeekRang
 export function isRotationEnd(weekIndex: number): boolean {
   return isPlanWeek(weekIndex) && weekIndex % ROTATION_WEEKS === 0
 }
+
+/**
+ * Which sentence a week gets: where it sits in its rotation, or that it is
+ * the last week of the plan.
+ *
+ * The four variants are the four things worth saying about a week, and the
+ * plan's end wins over the rotation's: on the final week "from week 13 the
+ * cycle restarts" is not merely unhelpful, it names a week that does not
+ * exist. Nothing here is a sentence — the variant is the key a screen looks
+ * up and the numbers are what it fills in.
+ */
+type RotationVariant = 'first' | 'middle' | 'last' | 'final'
+
+const VARIANTS: ReadonlyArray<RotationVariant> = ['first', 'middle', 'last']
+
+export interface RotationNote {
+  readonly variant: RotationVariant
+  readonly rotation: Rotation
+  /** The week the next rotation opens on. Unused by the `final` sentence. */
+  readonly nextWeek: number
+}
+
+export function rotationNote(
+  plan: Plan,
+  weekIndex: number,
+): Result.Result<RotationNote, WeekRangeError> {
+  return Result.map(rotationFor(weekIndex), (rotation) => {
+    const slot = (weekIndex - 1) % ROTATION_WEEKS
+    const isFinalWeek = weekIndex === plan.weeks.length
+
+    // SAFETY: `slot` is 0..2 by construction — `rotationFor` has already
+    // rejected a non-integral or out-of-range week — and VARIANTS has an
+    // entry for each. The index is total; only TypeScript cannot see it.
+    const variant = isFinalWeek ? 'final' : (VARIANTS[slot] as RotationVariant)
+
+    return { variant, rotation, nextWeek: weekIndex + 1 }
+  })
+}

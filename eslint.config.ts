@@ -249,6 +249,7 @@ export const CORE = [
   'src/features/*/pace.ts',
   'src/features/*/progress.ts',
   'src/features/*/schedule.ts',
+  'src/features/*/session.ts',
   'src/features/*/targets.ts',
   'src/features/*/types.ts',
   'src/lib/installPlatform.ts',

@@ -23,6 +23,7 @@ export default {
       heading: 'Active plan',
       progress: 'Week {week} of {weeks} · {done} of {total} sessions done',
       progressLabel: 'Sessions completed',
+      open: 'Open week {week} of {name}',
     },
     browse: {
       heading: 'Browse',
@@ -47,6 +48,70 @@ export default {
     toast: {
       enrolled: 'You are on {name}',
       enrolFailed: 'That plan could not be started',
+    },
+    // What a session is called, built from the catalogue's numbers by
+    // features/training/session.ts. The style — not the kind — picks the
+    // sentence: five kinds, three ways of writing one down.
+    session: {
+      steady: '{distance}+ steady',
+      intervals: '{reps} × {distance} / {rest} rest',
+      // A pass-through, deliberately: the title of a hard piece is its
+      // distance and nothing else (the kind line underneath already says
+      // what it is), but it stays in the catalogue so a translator can put
+      // words around it without a code change.
+      piece: '{distance}',
+    },
+    // The kind, as the line under the title. One per SessionKind — the
+    // i18nKeys arch test holds this list to exactly that set.
+    kind: {
+      steady: 'Aerobic distance',
+      shortRest: 'Short rest intervals',
+      longRest: 'Long rest intervals',
+      pacedTwoK: 'Paced 2k, easy either side',
+      distancePiece: 'Hard distance piece',
+    },
+    // Where a week sits in the three-week cycle. The plan's ending wins over
+    // the rotation's — see `rotationNote`.
+    rotation: {
+      first: 'First week of rotation {rotation} — the shortest reps of the cycle, and the fastest.',
+      middle: 'Second week of rotation {rotation} — the reps lengthen at the same target.',
+      last: 'Last week of rotation {rotation} — the reps are at their longest. From week {nextWeek} the cycle restarts a touch faster.',
+      final: 'Last week of the plan. Rotation {rotation} closes here.',
+    },
+    // The same four positions, said to someone about to row one of them.
+    // Shown only for the kinds whose target actually moves between rotations.
+    coach: {
+      first:
+        'The shortest reps of this rotation, at its fastest target. The pace is the point, not the effort.',
+      middle: 'Longer reps than last week at the same target. Hold it.',
+      last: 'Hold this pace as the reps get longer. Next rotation, go a tenth faster.',
+      final: 'The last of these in the plan. Hold the target and close the rotation out.',
+    },
+    week: {
+      title: 'Week {week}',
+      summary: '{sessions} sessions · roughly {km} km · {done} done',
+      strip: 'Weeks of {name}',
+      open: 'Week {week}',
+      notFound: 'That week is not part of this plan',
+    },
+    target: {
+      label: 'target',
+      band: '{lower}–{upper}',
+      done: 'Done',
+    },
+    detail: {
+      position: 'Week {week} · Session {position} of {sessions}',
+      targets: 'Targets from your 2k of {time}',
+      splitLabel: 'split /500m',
+      rateLabel: 'rate spm',
+      powerLabel: 'avg power',
+      rate: '{low}–{high}',
+      watts: '{watts} W',
+      pieces: 'Pieces',
+      rest: '{rest} rest between reps',
+      rep: 'Rep {index}',
+      notFound: 'That session is not in any plan',
+      noBenchmark: 'Set your 2k on the Plans screen and this session gets its targets.',
     },
   },
   benchmark: {

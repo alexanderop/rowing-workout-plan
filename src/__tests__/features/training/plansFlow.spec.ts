@@ -109,7 +109,7 @@ describe('the plans browser', () => {
     await screen.enrol('Pete Plan 5k')
 
     await screen.expectToast('You are on Pete Plan 5k')
-    await expect.element(screen.activePlan('Pete Plan 5k')).toBeVisible()
+    await expect.element(screen.activePlan(1, 'Pete Plan 5k')).toBeVisible()
     await screen.expectProgress('Week 1 of 12 · 0 of 71 sessions done')
 
     expect(await enrolmentRows()).toEqual([
@@ -129,7 +129,7 @@ describe('the plans browser', () => {
 
     await screen.enrol('Pete Plan 5k — Lite')
 
-    await expect.element(screen.activePlan('Pete Plan 5k — Lite')).toBeVisible()
+    await expect.element(screen.activePlan(1, 'Pete Plan 5k — Lite')).toBeVisible()
     // The enrolment repository deactivates the others in the same
     // transaction, which is the only reason the screen can show one card.
     const rows = await enrolmentRows()

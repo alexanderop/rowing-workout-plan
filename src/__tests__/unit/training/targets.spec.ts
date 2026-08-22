@@ -5,7 +5,14 @@ import { FastCheck } from 'effect/testing'
 import { pete5k } from '@/features/training/catalog'
 import { formatSplit } from '@/features/training/pace'
 import type { Rotation } from '@/features/training/schedule'
-import { benchmarkPace, targetFor, TARGET_OFFSETS_MS } from '@/features/training/targets'
+import {
+  benchmarkPace,
+  isRotationShifted,
+  steadyBandText,
+  targetFor,
+  TARGET_OFFSETS_MS,
+} from '@/features/training/targets'
+import { SESSION_KINDS } from '@/features/training/types'
 import type { PlanSession, SessionKind } from '@/features/training/types'
 
 /**
@@ -302,5 +309,57 @@ describe('every session in the catalogue', () => {
           Result.isSuccess(targetFor(planSession, BENCHMARK_2K_MS, 1)),
           `${planSession.id} (${planSession.kind})`,
         ).toBe(true)
+  })
+})
+
+describe('isRotationShifted', () => {
+  it('is true for exactly the two interval kinds whose target moves', () => {
+    expect(isRotationShifted('shortRest')).toBe(true)
+    expect(isRotationShifted('longRest')).toBe(true)
+  })
+
+  it('is false for the kinds a rotation does not re-pace', () => {
+    for (const kind of ['steady', 'pacedTwoK', 'distancePiece'] as const)
+      expect(isRotationShifted(kind), kind).toBe(false)
+  })
+
+  it('answers for exactly the kinds whose target actually moves between rotations', () => {
+    // Not a restatement of the table: this drives targetFor twice, once per
+    // rotation, and checks the predicate against what the numbers did.
+    for (const kind of SESSION_KINDS) {
+      const first = succeeded(targetFor(session(kind, { distanceM: 5000 }), BENCHMARK_2K_MS, 1))
+      const second = succeeded(targetFor(session(kind, { distanceM: 5000 }), BENCHMARK_2K_MS, 2))
+
+      expect(first.splitMs !== second.splitMs, kind).toBe(isRotationShifted(kind))
+    }
+  })
+})
+
+describe('steadyBandText', () => {
+  it('is the canvas window around a steady target', () => {
+    // 7:04.2 gives a steady target of 2:06.0, and the canvas prints the band
+    // around it as 2:04–2:08.
+    const steady = succeeded(targetFor(session('steady'), BENCHMARK_2K_MS, 1))
+
+    expect(succeeded(steadyBandText(steady.splitMs))).toEqual({
+      lower: '2:04.0',
+      upper: '2:08.0',
+    })
+  })
+
+  it('is symmetric about the target', () => {
+    // 2:00.0 either side by two seconds, so the edges are equidistant in the
+    // only form this function reports them in.
+    expect(succeeded(steadyBandText(120_000))).toEqual({ lower: '1:58.0', upper: '2:02.0' })
+  })
+
+  it('is a window, not a point — steady is a zone', () => {
+    const band = succeeded(steadyBandText(120_000))
+
+    expect(band.lower).not.toBe(band.upper)
+  })
+
+  it.each([0, -1, Number.NaN])('refuses a split of %p', (splitMs) => {
+    expect(failed(steadyBandText(splitMs))).toMatchObject({ _tag: 'Training.PaceRangeError' })
   })
 })

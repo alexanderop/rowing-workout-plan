@@ -58,6 +58,25 @@ describe.each(THEMES)('accessibility, %s theme', (mode) => {
     await assertNoViolations(screen.benchmark.dialog.element())
   })
 
+  it(`${SWEEPS.planWeek} has no violations`, async ({ planWeek, theme }) => {
+    await applyTheme(theme)
+    // Week 3 of the full plan: six rows, a twelve-chip strip and a rotation
+    // note — the densest screen in the app, and the one with the most colour
+    // on it (a target on every row, in muted text over a card).
+    const screen = await planWeek('pete5k', 3, { benchmark2kMs: BENCHMARK_2K_MS })
+    await screen.expectReady(3)
+
+    await assertNoViolations(screen.container)
+  })
+
+  it(`${SWEEPS.session} has no violations`, async ({ sessionDetail, theme }) => {
+    await applyTheme(theme)
+    const screen = await sessionDetail('pete5k-w3-s2', { benchmark2kMs: BENCHMARK_2K_MS })
+    await screen.expectReady('6 × 1k / 1′ rest')
+
+    await assertNoViolations(screen.container)
+  })
+
   it(`${SWEEPS.settings} has no violations`, async ({ settings, theme }) => {
     await applyTheme(theme)
     await settings.expectReady()
@@ -108,6 +127,20 @@ describe.each(THEMES)('accessibility, %s theme', (mode) => {
 describe('page structure', () => {
   it('settings has a sound page structure', async ({ settings }) => {
     await assertNoPageLevelViolations(settings)
+  })
+
+  it('a plan week has a sound page structure', async ({ planWeek }) => {
+    const screen = await planWeek('pete5k', 3, { benchmark2kMs: 424_200 })
+    await screen.expectReady(3)
+
+    await assertNoPageLevelViolations(screen)
+  })
+
+  it('a session has a sound page structure', async ({ sessionDetail }) => {
+    const screen = await sessionDetail('pete5k-w3-s2', { benchmark2kMs: 424_200 })
+    await screen.expectReady('6 × 1k / 1′ rest')
+
+    await assertNoPageLevelViolations(screen)
   })
 
   it('plans has a sound page structure', async ({ plans }) => {

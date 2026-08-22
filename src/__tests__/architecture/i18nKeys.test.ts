@@ -46,6 +46,35 @@ const INTERPOLATED = {
       'A plan carries its own description key (features/training/catalog.ts holds them as literals, and the Plan type makes one mandatory), so a plan cannot ship without a description and the usage check below still sees the keys.',
     keys: [],
   },
+  'features/training/components/SessionRow.vue': {
+    reason:
+      'A session is written as one of three sentences (features/training/session.ts picks the style) and labelled with its kind, so both keys are built from data the catalogue owns.',
+    keys: [
+      'plans.session.steady',
+      'plans.session.intervals',
+      'plans.session.piece',
+      'plans.kind.steady',
+      'plans.kind.shortRest',
+      'plans.kind.longRest',
+      'plans.kind.pacedTwoK',
+      'plans.kind.distancePiece',
+    ],
+  },
+  'views/PlanWeekView.vue': {
+    reason:
+      'The rotation explainer is one of four sentences, chosen by `rotationNote` — first, middle, last, or the end of the plan.',
+    keys: [
+      'plans.rotation.first',
+      'plans.rotation.middle',
+      'plans.rotation.last',
+      'plans.rotation.final',
+    ],
+  },
+  'views/SessionView.vue': {
+    reason:
+      'The title reuses the session sentences declared above, the kind line reuses the kind labels, and the coaching note is the same four rotation positions said to someone about to row one.',
+    keys: ['plans.coach.first', 'plans.coach.middle', 'plans.coach.last', 'plans.coach.final'],
+  },
 } as const satisfies Record<string, { reason: string; keys: ReadonlyArray<string> }>
 
 /**

@@ -7,6 +7,7 @@ import {
   nextSession,
   positionFor,
   rotationFor,
+  rotationNote,
   WeekRangeError,
 } from '@/features/training/schedule'
 import type { Plan } from '@/features/training/types'
@@ -200,5 +201,56 @@ describe('isRotationEnd', () => {
       const isLastWeekOfRotation = week === rotation * 3
       expect(isRotationEnd(week), `week ${week}`).toBe(isLastWeekOfRotation)
     }
+  })
+})
+
+describe('rotationNote', () => {
+  it('opens a rotation on its first week', () => {
+    for (const week of [1, 4, 7, 10])
+      expect(succeeded(rotationNote(pete5k, week)).variant, `week ${week}`).toBe('first')
+  })
+
+  it('calls the middle week the middle', () => {
+    for (const week of [2, 5, 8, 11])
+      expect(succeeded(rotationNote(pete5k, week)).variant, `week ${week}`).toBe('middle')
+  })
+
+  it('closes a rotation on its last week', () => {
+    for (const week of [3, 6, 9])
+      expect(succeeded(rotationNote(pete5k, week)).variant, `week ${week}`).toBe('last')
+  })
+
+  it('lets the end of the plan win over the end of the rotation', () => {
+    // Week 12 closes rotation 4 *and* the plan. Saying "from week 13 the
+    // cycle restarts" would name a week that does not exist, so the plan's
+    // ending is the one worth saying.
+    expect(succeeded(rotationNote(pete5k, 12)).variant).toBe('final')
+    expect(isRotationEnd(12)).toBe(true)
+  })
+
+  it('carries the rotation and the week the next one opens on', () => {
+    expect(succeeded(rotationNote(pete5k, 3))).toEqual({
+      variant: 'last',
+      rotation: 1,
+      nextWeek: 4,
+    })
+  })
+
+  it('agrees with rotationFor on every week of the plan', () => {
+    for (let week = 1; week <= 12; week += 1)
+      expect(succeeded(rotationNote(pete5k, week)).rotation, `week ${week}`).toBe(
+        succeeded(rotationFor(week)),
+      )
+  })
+
+  it('reads the final week off the plan rather than assuming twelve', () => {
+    // Both plans are twelve weeks today. The lite plan is the one that would
+    // notice first if that stopped being true.
+    expect(succeeded(rotationNote(pete5kLite, pete5kLite.weeks.length)).variant).toBe('final')
+    expect(succeeded(rotationNote(EMPTY_PLAN, 1)).variant).toBe('first')
+  })
+
+  it.each([0, 13, 1.5, Number.NaN])('refuses week %p', (weekIndex) => {
+    expect(failed(rotationNote(pete5k, weekIndex))).toBeInstanceOf(WeekRangeError)
   })
 })

@@ -3,6 +3,8 @@ import { resetAppState } from './helpers/reset'
 import type { Injection, MountedComposable } from './helpers/withSetup'
 import { withSetup } from './helpers/withSetup'
 import { PlansScreen } from './pages/plansScreen'
+import { PlanWeekScreen } from './pages/planWeekScreen'
+import { SessionScreen } from './pages/sessionScreen'
 import { SettingsScreen } from './pages/settingsScreen'
 import type { TrainingSeed } from './helpers/seed'
 import { seedTraining } from './helpers/seed'
@@ -69,6 +71,43 @@ export const it = test
       await resetAppState()
       await seedTraining(seed)
       const screen = await PlansScreen.open()
+      opened.push(screen)
+      return screen
+    }
+  })
+  /**
+   * One week of a plan, deep-linked — the way a bookmark or a shared URL
+   * arrives. Seeded and mounted in that order, for the same reason `plans` is.
+   *
+   * ```ts
+   * const screen = await planWeek('pete5k', 3, { benchmark2kMs: 424_200 })
+   * ```
+   */
+  .extend('planWeek', async ({}, { onCleanup }) => {
+    const opened: Array<PlanWeekScreen> = []
+    onCleanup(() => {
+      for (const screen of opened.reverse()) screen.close()
+    })
+
+    return async (planId: string, week: number, seed: TrainingSeed = {}) => {
+      await resetAppState()
+      await seedTraining(seed)
+      const screen = await PlanWeekScreen.open(planId, week)
+      opened.push(screen)
+      return screen
+    }
+  })
+  /** One session, deep-linked by the id that names it in exactly one plan. */
+  .extend('sessionDetail', async ({}, { onCleanup }) => {
+    const opened: Array<SessionScreen> = []
+    onCleanup(() => {
+      for (const screen of opened.reverse()) screen.close()
+    })
+
+    return async (sessionId: string, seed: TrainingSeed = {}) => {
+      await resetAppState()
+      await seedTraining(seed)
+      const screen = await SessionScreen.open(sessionId)
       opened.push(screen)
       return screen
     }
