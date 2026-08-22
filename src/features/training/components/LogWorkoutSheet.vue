@@ -62,7 +62,14 @@ watch(open, (isOpen) => {
   rate.value = ''
 })
 
-const distanceM_ = computed(() => Number(distance.value.trim()))
+/**
+ * Rounded here and nowhere else. A monitor reports whole metres, and rounding
+ * *after* deriving the split stored a row whose three numbers disagreed:
+ * `splitFor(distanceM, durationMs)` no longer reproduced the `avgSplitMs`
+ * beside it, so the log row showed a distance, a time and a pace that were
+ * not the same row.
+ */
+const distanceM_ = computed(() => Math.round(Number(distance.value.trim())))
 const durationMs = computed(() => parseDuration(time.value))
 
 /**
@@ -89,6 +96,10 @@ const resultText = computed(() =>
 const showInvalidTime = computed(
   () => time.value.trim() !== '' && !Result.isSuccess(durationMs.value),
 )
+
+// The distance field said nothing when it was wrong: Save simply stayed
+// disabled, which reads as the app being broken rather than the entry being.
+const showInvalidDistance = computed(() => distance.value.trim() !== '' && !(distanceM_.value > 0))
 
 const canSave = computed(() => resultText.value !== '' && !isSaving.value)
 
@@ -140,7 +151,7 @@ function draft(): Result.Result<WorkoutDraft, DraftFailure> {
 
     return {
       source: 'manual',
-      distanceM: Math.round(distanceM_.value),
+      distanceM: distanceM_.value,
       durationMs: duration,
       avgSplitMs,
       avgWatts,
@@ -198,8 +209,13 @@ async function save(): Promise<void> {
             v-model="distance"
             inputmode="numeric"
             :placeholder="t('logSheet.distancePlaceholder')"
+            :aria-describedby="showInvalidDistance ? 'log-distance-error' : undefined"
+            :aria-invalid="showInvalidDistance"
             autocomplete="off"
           />
+          <p v-if="showInvalidDistance" id="log-distance-error" class="text-sm text-destructive">
+            {{ t('logSheet.invalidDistance') }}
+          </p>
         </div>
 
         <div class="flex flex-col gap-2">

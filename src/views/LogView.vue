@@ -16,6 +16,7 @@ import {
   WORKOUT_FILTERS,
 } from '@/features/training/history'
 import { kilometres } from '@/features/training/session'
+import { useNow } from '@/composables/useNow'
 import { useTrainingFormat } from '@/features/training/useTrainingFormat'
 
 /**
@@ -33,16 +34,19 @@ const workouts = useAtomValue(() => workoutsAtom)
 const all = computed(() => AsyncResult.getOrElse(workouts.value, () => []))
 const loadFailed = computed(() => AsyncResult.isFailure(workouts.value))
 
-const now = Date.now()
+// Re-read when the app comes back to the foreground: "this week" is a
+// statement about today, and a PWA resumed from the app switcher never
+// navigates.
+const now = useNow()
 
 const filter = ref<WorkoutFilter>('all')
 const visible = computed(() => filterWorkouts(all.value, filter.value))
-const groups = computed(() => groupByWeek(visible.value, now))
+const groups = computed(() => groupByWeek(visible.value, now.value))
 
 // The totals deliberately ignore the filter: a month's distance is a month's
 // distance, and a number that changes when you tap a chip is a number nobody
 // can quote.
-const totals = computed(() => monthTotals(all.value, now))
+const totals = computed(() => monthTotals(all.value, now.value))
 const totalTime = computed(() => {
   const { hours, minutes } = elapsed(totals.value.durationMs)
   if (hours === 0) return t('log.totalTimeShort', { minutes })

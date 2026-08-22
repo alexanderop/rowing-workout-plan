@@ -35,6 +35,20 @@ describe('logging a session', () => {
     await screen.expectPosition('Week 1 of 12 · Session 1 of 6')
   })
 
+  it('reads a steady target as a band on the card and in the week list alike', async ({
+    today,
+  }) => {
+    // One screen showed the same session two ways: `2:06.0` on the card and
+    // `2:04.0–2:08.0` in the list directly under it. Aerobic work is a zone,
+    // an interval is a number, and printing one as the other is how a steady
+    // row turns into a race — so both have to read it the same way.
+    const screen = await today(SEED)
+    await screen.expectReady()
+
+    await expect.element(screen.hero(FIRST)).toHaveTextContent('2:04.0–2:08.0')
+    await expect.element(screen.hero(FIRST)).not.toHaveTextContent('2:06.0')
+  })
+
   it('advances Today once the session is logged', async ({ today }) => {
     const screen = await today(SEED)
     await screen.openSession(FIRST)

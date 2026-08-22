@@ -108,6 +108,7 @@ const de: MessageSchema = {
   },
   today: {
     title: 'Heute',
+    loadError: 'Heute konnte nicht geladen werden',
     heading: 'Einheit für heute',
     position: 'Woche {week} von {weeks} · Einheit {position} von {sessions}',
     week: 'Woche {week}',
@@ -166,6 +167,7 @@ const de: MessageSchema = {
     ratePlaceholder: '24',
     optional: 'optional',
     result: '{split} /500m · {watts} W',
+    invalidDistance: 'Gib die Distanz in ganzen Metern ein',
     invalidTime: 'Gib eine Zeit wie 43:07 ein',
     toast: {
       saved: 'Einheit eingetragen',

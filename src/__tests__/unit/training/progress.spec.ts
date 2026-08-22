@@ -105,10 +105,33 @@ describe('activePlan', () => {
     expect(activePlan(PLANS, [enrolment({ planId: 'pete5k-2019' })])).toBeNull()
   })
 
-  it('takes the first active row when an import has left two', () => {
+  it('takes the most recently started when two rows are somehow both active', () => {
+    // The repository keeps there to only be one, so this should be
+    // unreachable. It is pinned because the alternative — whichever row came
+    // first — is primary-key order over random UUIDs, which is arbitrary
+    // rather than merely unlikely.
     const rows = [
-      enrolment({ id: 'a', planId: 'pete5k' }),
-      enrolment({ id: 'b', planId: 'pete5k-lite' }),
+      enrolment({ id: 'old', planId: 'pete5k', startedAt: 1_000 }),
+      enrolment({ id: 'new', planId: 'pete5k-lite', startedAt: 2_000 }),
+    ]
+
+    expect(activePlan(PLANS, rows)).toBe(pete5kLite)
+    expect(activePlan(PLANS, rows.toReversed())).toBe(pete5kLite)
+  })
+
+  it('gives a startedAt tie to the row that arrives later', () => {
+    const rows = [
+      enrolment({ id: 'a', planId: 'pete5k', startedAt: 5_000 }),
+      enrolment({ id: 'b', planId: 'pete5k-lite', startedAt: 5_000 }),
+    ]
+
+    expect(activePlan(PLANS, rows)).toBe(pete5kLite)
+  })
+
+  it('ignores a deactivated row that started later than the active one', () => {
+    const rows = [
+      enrolment({ id: 'now', planId: 'pete5k', startedAt: 1_000 }),
+      enrolment({ id: 'abandoned', planId: 'pete5k-lite', startedAt: 9_000, active: false }),
     ]
 
     expect(activePlan(PLANS, rows)).toBe(pete5k)

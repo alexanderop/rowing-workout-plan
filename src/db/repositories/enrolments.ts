@@ -80,11 +80,24 @@ export class EnrolmentsRepo extends Context.Service<
           })
         }),
 
+        /**
+         * Import path. Every existing row is deactivated in the same
+         * transaction as the write, so a restore cannot leave the table with
+         * two active enrolments — which is what a plain `bulkPut` did: the
+         * backup's active row landed beside the local one, both claiming to
+         * be the plan you are on, and which of them a screen showed came down
+         * to the order Dexie happened to return random UUIDs in.
+         *
+         * The backup wins, because that is what restoring one means.
+         */
         putMany: Effect.fn('EnrolmentsRepo.putMany')(function* (
           rows: ReadonlyArray<PlanEnrolment>,
         ) {
           yield* tryDb('bulk import enrolments', async () => {
-            await db.enrolments.bulkPut([...rows])
+            await db.transaction('rw', db.enrolments, async () => {
+              await db.enrolments.toCollection().modify({ active: false })
+              await db.enrolments.bulkPut([...rows])
+            })
           })
         }),
       })

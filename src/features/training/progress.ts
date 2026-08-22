@@ -61,17 +61,26 @@ export function currentBenchmark(benchmarks: ReadonlyArray<Benchmark>): Benchmar
  * an older catalogue — and the screen's response to both is the same one, so
  * distinguishing them here would only push the decision outward.
  *
- * The first active enrolment wins. The repository deactivates the others in
- * the same transaction, so there is normally only one; an imported backup is
- * the case where there might not be, and taking the first is a stable answer
- * rather than a correct one there is no way to compute.
+ * The **most recently started** active enrolment wins. The repository keeps
+ * there to only be one — `create` and `putMany` both deactivate the others in
+ * their own transaction — so this tiebreak should never be reached. It exists
+ * because the alternative was taking whichever came first, and "first" out of
+ * `toArray()` is primary-key order over random UUIDs: an answer that is
+ * arbitrary rather than merely unlikely. `startedAt` is on every row, and the
+ * plan you started last is what "the plan I am on" means.
  */
 export function activePlan(
   plans: ReadonlyArray<Plan>,
   enrolments: ReadonlyArray<PlanEnrolment>,
 ): Plan | null {
-  const enrolment = enrolments.find((candidate) => candidate.active)
-  if (enrolment === undefined) return null
+  let enrolment: PlanEnrolment | null = null
+
+  for (const candidate of enrolments) {
+    if (!candidate.active) continue
+    if (enrolment === null || candidate.startedAt >= enrolment.startedAt) enrolment = candidate
+  }
+
+  if (enrolment === null) return null
 
   return plans.find((plan) => plan.id === enrolment.planId) ?? null
 }

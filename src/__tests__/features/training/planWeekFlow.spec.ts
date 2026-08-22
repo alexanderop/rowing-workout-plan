@@ -126,6 +126,13 @@ describe('the session', () => {
     await session.expectStat('249 W')
   })
 
+  it('reads a steady session as a band on the targets card too', async ({ sessionDetail }) => {
+    const session = await sessionDetail('pete5k-w3-s1', SEED)
+    await session.expectReady(STEADY)
+
+    await session.expectStat('2:04.0–2:08.0')
+  })
+
   it('lists one row per rep', async ({ sessionDetail }) => {
     const session = await sessionDetail('pete5k-w3-s2', SEED)
 

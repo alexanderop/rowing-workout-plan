@@ -34,6 +34,15 @@ export class TodayScreen extends AppScreen {
     await this.session(title).click()
   }
 
+  /**
+   * The hero card — the session Today is offering, with its three figures.
+   * Scoped to the link so the identical numbers in the week list underneath
+   * cannot answer for it.
+   */
+  hero(title: string): Locator {
+    return this.session(title)
+  }
+
   /** Where the plan says you are. */
   get position(): Locator {
     return page.getByText(/^Week \d+ of \d+ · Session \d+ of \d+$/)

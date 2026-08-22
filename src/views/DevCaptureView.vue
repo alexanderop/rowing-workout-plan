@@ -66,9 +66,19 @@ function fail(cause: unknown): void {
   error.value = cause instanceof Error ? cause.message : String(cause)
 }
 
-/** A drop the app did not ask for: the erg powered down, or walked away. */
+/**
+ * A drop the app did not ask for: the erg powered down, or walked away.
+ *
+ * The subscription is torn down and cleared, not just marked stopped. Leaving
+ * it in place meant "Connect again" overwrote the reference without stopping
+ * the old one, so the previous characteristic listener kept calling `record`
+ * — against the *new* `capturedAt`, which mixes negative offsets into the
+ * next capture. A capture is only worth taking if its timing is evidence.
+ */
 function handleDrop(): void {
   status.value = 'stopped'
+  void subscription.value?.stop()
+  subscription.value = null
 }
 
 /**

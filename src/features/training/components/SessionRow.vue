@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { Check, ChevronRight } from '@lucide/vue'
-import { Result } from 'effect'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { RouteNames } from '@/router'
-import { formatSplit } from '../pace'
 import { describeSession } from '../session'
-import { steadyBandText } from '../targets'
 import type { SessionTarget } from '../targets'
 import type { PlanSession } from '../types'
+import { useTargetText } from '../useTargetText'
 
 const { session, position, target, done } = defineProps<{
   session: PlanSession
@@ -20,30 +18,13 @@ const { session, position, target, done } = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { targetText: text } = useTargetText()
 
 const description = computed(() => describeSession(session))
 
-/**
- * Steady is quoted as a window and everything else as a number, which is the
- * one place this row reads the kind rather than the description: aerobic work
- * is a zone to sit in, an interval is a pace to hit, and printing one as the
- * other is how a steady row turns into a race.
- */
-const targetText = computed(() => {
-  if (target === null) return ''
-  if (session.kind === 'steady') return bandText(target.splitMs)
-
-  return Result.getOrElse(formatSplit(target.splitMs), () => '')
-})
-
-function bandText(splitMs: number): string {
-  return Result.getOrElse(
-    Result.map(steadyBandText(splitMs), ({ lower, upper }) =>
-      t('plans.target.band', { lower, upper }),
-    ),
-    () => '',
-  )
-}
+// A band for steady, a number for everything else — the one rule, in the one
+// place that owns it.
+const targetText = computed(() => text.value(session, target))
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { exportData, importData, resetDatabase, runDb } from '@/db'
+import { enrolInPlan, exportData, importData, listEnrolments, resetDatabase, runDb } from '@/db'
 import { EMPTY_BACKUP, FULL_BACKUP } from '../helpers/backup'
 
 /**
@@ -61,6 +61,24 @@ describe('backup export/import', () => {
     expect(restored.enrolments).toEqual(exported.enrolments)
     expect(restored.workouts).toEqual(exported.workouts)
     expect(restored.workouts[0].intervals).toHaveLength(2)
+  })
+
+  it('leaves exactly one enrolment active after importing over an existing one', async () => {
+    // A restore taken on another device carries its own enrolment ids, so a
+    // plain bulk put landed the backup's active row *beside* the local one —
+    // two rows both claiming to be the plan you are on, and which of them a
+    // screen showed came down to the order Dexie returned random UUIDs in.
+    await runDb(enrolInPlan({ planId: 'pete5k-lite' }).pipe(Effect.orDie))
+
+    await runDb(importData(FULL_BACKUP).pipe(Effect.orDie))
+
+    const enrolments = await runDb(listEnrolments.pipe(Effect.orDie))
+    expect(enrolments.filter((row) => row.active)).toEqual([
+      expect.objectContaining({ id: 'enrol-1', planId: 'pete5k' }),
+    ])
+    // The local row is kept, just no longer active: a backup restores what it
+    // carries without deleting history it says nothing about.
+    expect(enrolments).toHaveLength(2)
   })
 
   it('rejects payloads that are not backups with a tagged error', async () => {

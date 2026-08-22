@@ -1,18 +1,25 @@
 <script setup lang="ts">
-import { Result } from 'effect'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatSplit } from '../pace'
 import type { SessionTarget } from '../targets'
+import type { PlanSession } from '../types'
+import { useTargetText } from '../useTargetText'
 
-const { target } = defineProps<{ target: SessionTarget }>()
+const { session, target } = defineProps<{
+  session: PlanSession
+  target: SessionTarget
+}>()
 
 const { t } = useI18n()
+const { targetText } = useTargetText()
 
 // Every number on this card comes from `targetFor`; the card only decides how
 // many digits of each to show. Watts are whole — a monitor never shows a
 // fraction of one — and the split keeps the tenth a rower steers by.
-const splitText = computed(() => Result.getOrElse(formatSplit(target.splitMs), () => ''))
+// A band for steady, a number otherwise — the same rule every other screen
+// reads targets by. The stat is wider for a band; `tabular-nums` keeps it
+// from shifting the two beside it.
+const splitText = computed(() => targetText.value(session, target))
 const rateText = computed(() =>
   t('plans.detail.rate', { low: target.rateRange.low, high: target.rateRange.high }),
 )

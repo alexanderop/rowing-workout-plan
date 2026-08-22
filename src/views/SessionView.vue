@@ -160,7 +160,7 @@ const backTo = computed(() => {
           <h2 id="session-targets" class="text-sm text-muted-foreground">
             {{ t('plans.detail.targets', { time: benchmarkText }) }}
           </h2>
-          <TargetsCard :target="target" />
+          <TargetsCard :session="location.session" :target="target" />
         </section>
 
         <p

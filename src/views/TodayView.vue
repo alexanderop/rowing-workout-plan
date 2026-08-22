@@ -9,12 +9,13 @@ import TemplatePageLayout from '@/components/templates/TemplatePageLayout.vue'
 
 import { activePlanAtom, benchmarkAtom, completedSessionsAtom } from '@/features/training/atoms'
 import SessionRow from '@/features/training/components/SessionRow.vue'
-import { formatSplit } from '@/features/training/pace'
 import { nextSession, positionFor, rotationFor } from '@/features/training/schedule'
 import { describeSession, sessionDistanceM, sessionDurationMs } from '@/features/training/session'
 import { targetFor } from '@/features/training/targets'
 import type { SessionTarget } from '@/features/training/targets'
 import type { PlanSession } from '@/features/training/types'
+import { useNow } from '@/composables/useNow'
+import { useTargetText } from '@/features/training/useTargetText'
 import { useTrainingFormat } from '@/features/training/useTrainingFormat'
 import { RouteNames } from '@/router'
 
@@ -30,6 +31,7 @@ import { RouteNames } from '@/router'
 
 const { t } = useI18n()
 const { metres, longDay } = useTrainingFormat()
+const { targetText } = useTargetText()
 
 /** One frozen empty set, so a screen with nothing loaded does not allocate one per render. */
 const EMPTY: ReadonlySet<string> = new Set()
@@ -47,6 +49,11 @@ const state = computed(() =>
 )
 const data = computed(() => AsyncResult.getOrElse(state.value, () => null))
 
+// Today is the home route, so it is the screen most likely to be the first
+// thing a broken database is seen through — and the one where a blank body
+// is least distinguishable from "still loading".
+const loadFailed = computed(() => AsyncResult.isFailure(state.value))
+
 /**
  * The three reads, named once each.
  *
@@ -59,8 +66,10 @@ const benchmark2kMs = computed(() => data.value?.benchmark?.timeMs ?? null)
 const completedIds = computed(() => data.value?.completed ?? EMPTY)
 
 // The one clock read on the screen, and it is for display only: what to row
-// comes from the log, never from the date.
-const today = computed(() => longDay.value(Date.now()))
+// comes from the log, never from the date. Refreshed on resume, so a phone
+// left on this screen overnight does not still say yesterday.
+const now = useNow()
+const today = computed(() => longDay.value(now.value))
 
 const position = computed(() => {
   const current = activePlan.value
@@ -96,8 +105,10 @@ function targetOf(planSession: PlanSession): SessionTarget | null {
 
 const target = computed(() => (session.value === null ? null : targetOf(session.value)))
 
+// The same rule the week list underneath uses, so one screen cannot print two
+// different targets for one session — a steady row reads as a band in both.
 const splitText = computed(() =>
-  Result.getOrElse(formatSplit(target.value?.splitMs ?? 0), () => ''),
+  session.value === null ? '' : targetText.value(session.value, target.value),
 )
 
 const description = computed(() => (session.value === null ? null : describeSession(session.value)))
@@ -129,7 +140,11 @@ const rows = computed(() =>
 <template>
   <TemplatePageLayout :title="t('today.title')" :subtitle="today" :show-back="false">
     <div class="mx-auto flex w-full max-w-lg flex-col gap-section p-4">
-      <template v-if="data">
+      <div v-if="loadFailed" role="alert" class="rounded-lg border border-dashed p-8 text-center">
+        <p class="text-sm text-muted-foreground">{{ t('today.loadError') }}</p>
+      </div>
+
+      <template v-else-if="data">
         <!-- No plan, or no 2k: one door out rather than a half-rendered
              screen. The Plans tab is where both are set. -->
         <section
@@ -187,18 +202,23 @@ const rows = computed(() =>
                 }}
               </span>
 
+              <!-- `justify-between` on each cell, not just `gap`: a steady
+                   target is a band and wraps to two lines where a split does
+                   not, and without this the label under it sits a line lower
+                   than the two beside it. The grid stretches the cells, so
+                   pushing the labels to the bottom lines all three up. -->
               <dl class="grid grid-cols-3 gap-2 text-center">
-                <div class="flex flex-col gap-0.5">
+                <div class="flex flex-col justify-between gap-0.5">
                   <dd class="font-semibold tabular-nums">{{ splitText }}</dd>
                   <dt class="text-xs text-muted-foreground">{{ t('today.targetLabel') }}</dt>
                 </div>
-                <div class="flex flex-col gap-0.5">
+                <div class="flex flex-col justify-between gap-0.5">
                   <dd class="font-semibold tabular-nums">
                     {{ metres(sessionDistanceM(session)) }}
                   </dd>
                   <dt class="text-xs text-muted-foreground">{{ t('today.distanceLabel') }}</dt>
                 </div>
-                <div class="flex flex-col gap-0.5">
+                <div class="flex flex-col justify-between gap-0.5">
                   <dd class="font-semibold tabular-nums">{{ durationText }}</dd>
                   <dt class="text-xs text-muted-foreground">{{ t('today.durationLabel') }}</dt>
                 </div>

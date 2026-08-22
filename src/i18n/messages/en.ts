@@ -120,6 +120,7 @@ export default {
   },
   today: {
     title: 'Today',
+    loadError: 'Today could not be loaded',
     heading: "Today's session",
     position: 'Week {week} of {weeks} · Session {position} of {sessions}',
     week: 'Week {week}',
@@ -179,6 +180,7 @@ export default {
     ratePlaceholder: '24',
     optional: 'optional',
     result: '{split} /500m · {watts} W',
+    invalidDistance: 'Enter the distance in whole metres',
     invalidTime: 'Enter a time like 43:07',
     toast: {
       saved: 'Workout logged',
