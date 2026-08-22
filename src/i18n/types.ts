@@ -6,7 +6,7 @@ export const SUPPORTED_LOCALES = ['en', 'de'] as const
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number]
 
 declare module 'vue-i18n' {
-  // Typed message keys: `t('nav.notes')` compiles, `t('nav.typo')` does not.
+  // Typed message keys: `t('nav.settings')` compiles, `t('nav.typo')` does not.
 
   export interface DefineLocaleMessage extends MessageSchema {}
 }

@@ -242,12 +242,7 @@ const NO_APP_STATE = {
  */
 
 /** Pure decisions. No clock, no platform, no reactivity — and no cap on how hard they think. */
-export const CORE = [
-  'src/features/*/domain.ts',
-  'src/db/converters.ts',
-  'src/lib/installPlatform.ts',
-  'src/lib/utils.ts',
-]
+export const CORE = ['src/features/*/domain.ts', 'src/lib/installPlatform.ts', 'src/lib/utils.ts']
 
 /**
  * The outermost shell: modules whose entire job is to talk to a browser API
@@ -292,7 +287,7 @@ export const REACTIVE_SHELL = [
  * core/shell split leaves the shell with few conditionals; a second level of
  * nesting in a component is the first observable sign that a decision failed
  * to move down. Line count is deliberately *not* capped: an Effect pipeline is
- * long but flat (`save` in QuickAddNoteSheet is 25 lines at complexity 2), so
+ * long but flat (`handleImportFile` in SettingsView is 25 lines at complexity 2), so
  * max-lines-per-function would only punish the style we want.
  */
 const SHELL_BUDGET: Linter.RulesRecord = {
@@ -304,9 +299,9 @@ const SHELL_BUDGET: Linter.RulesRecord = {
 /**
  * What makes the core the core: the same input gives the same answer, forever,
  * on any machine. Every entry below is a way to read something that is not an
- * argument. `noteAge` is the worked example of the alternative — it takes
- * "now" from Effect's `Clock` service, so TestClock can drive every bucket
- * boundary instead of fake timers guessing at them.
+ * argument. The alternative a core module reaches for is Effect's `Clock`
+ * service, which TestClock can drive to any instant — so a bucket boundary is
+ * exercised exactly rather than guessed at with fake timers.
  */
 const AMBIENT_READS = [
   'localStorage',
@@ -344,13 +339,13 @@ const CORE_IS_DETERMINISTIC: Linter.RulesRecord = {
       object: 'Date',
       property: 'now',
       message:
-        "The core does not read the clock. Take the timestamp as a parameter, or yield Effect's `Clock.currentTimeMillis` — see `noteAge` in src/features/notes/domain.ts, which is testable at every bucket boundary because it did. docs/functional-core.md",
+        "The core does not read the clock. Take the timestamp as a parameter, or yield Effect's `Clock.currentTimeMillis`, which TestClock can drive to any instant. docs/functional-core.md",
     },
     {
       object: 'Math',
       property: 'random',
       message:
-        'The core is deterministic. Take the value as a parameter, or put the generator behind a service default the way src/db/generateId.ts does. docs/functional-core.md',
+        'The core is deterministic. Take the value as a parameter, or put the generator behind an Effect `Context.Reference` with a real default, which a test can override. docs/functional-core.md',
     },
   ],
 
@@ -551,7 +546,7 @@ export default defineConfigWithVueTs(
       // undefined — forcing a default on every one adds noise, not safety.
       'vue/require-default-prop': 'off',
 
-      // `interface Note extends Schema.Schema.Type<typeof Note> {}` is the
+      // `interface Row extends Schema.Schema.Type<typeof Row> {}` is the
       // Effect idiom for giving a schema's decoded type the schema's own
       // name — a body would defeat the point. Still flag the genuinely empty
       // `interface Foo {}`, which means nothing.

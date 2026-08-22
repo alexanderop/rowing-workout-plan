@@ -245,7 +245,14 @@ describe('the checks reject a tree written the wrong way', () => {
 
   it('expands both glob shapes against the real tree', () => {
     expect(resolveGlob('src/composables/*.ts')).toContain('src/composables/useTheme.ts')
-    expect(resolveGlob('src/features/*/use*.ts')).toContain('src/features/notes/useNoteAge.ts')
+    // The feature shape — a wildcard directory *and* a wildcard filename —
+    // proved against a tree that has one. `src/features/*/use*.ts` itself is
+    // allowed to resolve to nothing: the app has no features until the
+    // training slices land, and a wildcard that matches zero files is not the
+    // rot this check is looking for.
+    expect(resolveGlob('src/__tests__/*/use*.spec.ts')).toContain(
+      'src/__tests__/composables/useLocale.spec.ts',
+    )
   })
 
   it('resolves to nothing when the directory is gone', () => {

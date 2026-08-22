@@ -82,8 +82,8 @@ const EDGE_MODULES = EDGE_GLOBS.flatMap((glob) => resolveGlob(glob))
  * Where a module's unit spec lives.
  *
  * The unit tier mirrors the source tree with `features/` elided —
- * `src/features/notes/domain.ts` is specced at `unit/notes/domain.spec.ts`,
- * not `unit/features/notes/…`.
+ * `src/features/training/domain.ts` is specced at
+ * `unit/training/domain.spec.ts`, not `unit/features/training/…`.
  */
 export function unitSpecFor(module: string): string {
   const withoutSrc = module.replace(/^src\//, '').replace(/^features\//, '')
@@ -105,7 +105,7 @@ function unitSpecs(directory = `${ROOT}${UNIT_TIER}/`, prefix = `${UNIT_TIER}/`)
  *
  * `@effect/vitest`'s `TestClock` is deliberately *not* a double by this
  * definition, and must not be: swapping a service implementation is the seam
- * the core is built around, not a hole punched in one. `noteAge` yielding
+ * the core is built around, not a hole punched in one. A program yielding
  * `Clock.currentTimeMillis` is what a testable core looks like — the spec that
  * drives it is doing the opposite of mocking.
  */
@@ -231,8 +231,13 @@ describe('the checks reject a tree written the wrong way', () => {
   })
 
   it('expands a wildcard segment against the real tree', () => {
-    // The glob that actually ships. It must find the worked example.
-    expect(resolveGlob('src/features/*/domain.ts')).toContain('src/features/notes/domain.ts')
+    // A shipped glob shape against a directory that actually has one.
+    // `src/features/*/domain.ts` is deliberately not the example: it resolves
+    // to nothing until the first feature lands, which the rule above already
+    // allows.
+    expect(resolveGlob('src/components/*/TemplatePageLayout.vue')).toEqual([
+      'src/components/templates/TemplatePageLayout.vue',
+    ])
   })
 
   it('resolves a wildcard to nothing when the directory is gone', () => {
@@ -240,11 +245,13 @@ describe('the checks reject a tree written the wrong way', () => {
   })
 
   it('maps a module to its spec, eliding features/', () => {
-    expect(unitSpecFor('src/features/notes/domain.ts')).toBe(`${UNIT_TIER}/notes/domain.spec.ts`)
+    expect(unitSpecFor('src/features/training/domain.ts')).toBe(
+      `${UNIT_TIER}/training/domain.spec.ts`,
+    )
     expect(unitSpecFor('src/lib/installPlatform.ts')).toBe(
       `${UNIT_TIER}/lib/installPlatform.spec.ts`,
     )
-    expect(unitSpecFor('src/db/converters.ts')).toBe(`${UNIT_TIER}/db/converters.spec.ts`)
+    expect(unitSpecFor('src/db/backup.ts')).toBe(`${UNIT_TIER}/db/backup.spec.ts`)
   })
 
   it('finds each flavour of test double', () => {
@@ -260,7 +267,7 @@ describe('the checks reject a tree written the wrong way', () => {
     expect(
       usesTestDoubles(`it.effect('ages', () => Effect.gen(function* () {
         yield* TestClock.adjust('2 minutes')
-        expect(yield* noteAge(0)).toEqual({ unit: 'minutes', count: 2 })
+        expect(yield* elapsedSince(0)).toEqual({ unit: 'minutes', count: 2 })
       }))`),
     ).toBe(false)
   })

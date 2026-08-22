@@ -29,8 +29,8 @@ const { canInstall, isInstalled } = useInstallPrompt()
 const installDialogOpen = ref(false)
 
 // Import writes rows, so it runs through the mutation atom: when the program
-// lands, the notes read atoms are invalidated and re-read the imported data
-// — no manual store reload. Export only reads, so it stays on `runDb`.
+// lands, the read atoms are invalidated and re-read the imported data — no
+// manual store reload. Export only reads, so it stays on `runDb`.
 const runMutation = useAtomSet(() => dbMutation, { mode: 'promise' })
 
 // The shared failure branch: a structured log for the developer, a toast for
@@ -74,7 +74,7 @@ function handleExport(): Promise<void> {
   return runDb(
     exportData.pipe(
       Effect.flatMap(downloadBackup),
-      Effect.catchTags({ 'Db.DatabaseError': failed, 'BackupFile.BackupFileError': failed }),
+      Effect.catchTags({ 'BackupFile.BackupFileError': failed }),
     ),
   )
 }
@@ -91,12 +91,11 @@ async function handleImportFile(event: Event): Promise<void> {
 
   const failed = reportFailure('import backup', t('settings.data.importError'))
 
-  // Read the file, validate it as a backup, write it — one program, three
+  // Read the file, validate it as a backup, write it — one program, two
   // distinct ways to fail, matched by tag: a payload that is not a backup
-  // gets its own message, an unreadable file or a failed write stays generic.
-  // A tag left out of `catchTags` stays in the error channel, so adding a
-  // fourth failure to the pipeline breaks the build at `runMutation` until it
-  // is handled here.
+  // gets its own message, an unreadable file stays generic. A tag left out of
+  // `catchTags` stays in the error channel, so adding a third failure to the
+  // pipeline breaks the build at `runMutation` until it is handled here.
   await runMutation(
     readBackupFile(file).pipe(
       Effect.flatMap(importData),
@@ -104,7 +103,6 @@ async function handleImportFile(event: Event): Promise<void> {
       Effect.catchTags({
         'Db.BackupInvalidError': reportFailure('import backup', t('settings.data.invalidBackup')),
         'BackupFile.BackupFileError': failed,
-        'Db.DatabaseError': failed,
       }),
     ),
   )

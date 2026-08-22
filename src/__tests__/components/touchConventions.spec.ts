@@ -31,10 +31,10 @@ function scrollContainers(root: Element): Array<Element> {
 }
 
 describe('touch conventions', () => {
-  it('contains overscroll on every scroll container in the shell', async ({ notes }) => {
-    await notes.expectNoNotes()
+  it('contains overscroll on every scroll container in the shell', async ({ settings }) => {
+    await settings.expectReady()
 
-    const containers = scrollContainers(notes.root.element())
+    const containers = scrollContainers(settings.root.element())
 
     // Without this the test passes when the shell has no scroller at all —
     // the a11yCoverage lesson: a green check means nothing until you know it
@@ -80,25 +80,25 @@ describe('touch conventions', () => {
    * sight, so the test survives the declaration moving.
    *
    * Each assertion was checked by deleting the rule it covers, which is the
-   * only way to know a green one means anything. Two of the three go red:
+   * only way to know a green one means anything. The heading is the one that
+   * goes red on removing `body { user-select: none }`; the tab above it
+   * carries its own `select-none`, so that one would stay green.
    *
-   * - the heading, on removing `body { user-select: none }` — the tab above
-   *   it carries its own `select-none`, so that one would stay green;
-   * - the note body, on removing `select-text` from NoteCard.
-   *
-   * **The field assertion cannot go red in this tier, and that is recorded
-   * rather than glossed.** The failure it is about — a global
-   * `user-select: none` with no exemption making iOS refuse caret placement —
-   * is WebKit behaviour; desktop Chromium keeps inputs editable either way,
-   * so deleting the exemption leaves this green. It is kept as the statement
-   * of the rule, and the thing that actually covers it is item 4 on the
-   * manual device checklist in docs/touch-conventions.md.
+   * **Two halves of the rule have nothing on screen to assert against right
+   * now, and that is recorded rather than glossed.** `select-text` on prose,
+   * and the `input`/`textarea` exemption, both need a screen that renders
+   * prose or a text field — the notes worked example was the only one, and
+   * the training screens are what bring them back. Until then the CSS in
+   * `src/style.css` is covered by `architecture/touchConventions.test.ts`,
+   * which grades the declarations, and by item 4 on the manual device
+   * checklist in docs/touch-conventions.md. The field half could not go red
+   * in this tier anyway: iOS refusing caret placement is WebKit behaviour and
+   * desktop Chromium keeps inputs editable either way.
    */
-  it('makes chrome unselectable while leaving prose and fields alone', async ({ notes }) => {
-    const body = 'Two litres, oat if they have it'
-    await notes.addNote({ title: 'Buy milk', body })
+  it('makes chrome unselectable', async ({ settings }) => {
+    await settings.expectReady()
 
-    await userEvent.dblClick(notes.tab('Notes'))
+    await userEvent.dblClick(settings.tab('Settings'))
     expect(
       window.getSelection()?.toString(),
       'a tab label is a control, not quotable text — double-clicking one should select nothing',
@@ -108,29 +108,10 @@ describe('touch conventions', () => {
     // stay green if the global rule vanished. The route heading is covered by
     // nothing but `body { user-select: none }`, which is what makes this the
     // one that would go red.
-    await userEvent.dblClick(notes.heading)
+    await userEvent.dblClick(settings.heading)
     expect(
       window.getSelection()?.toString(),
       'the app-wide selection suppression is gone — src/style.css',
     ).toBe('')
-
-    await userEvent.dblClick(notes.noteBody(body))
-    expect(
-      window.getSelection()?.toString(),
-      'the note body is the one thing on the card the user wrote — it needs select-text back',
-    ).not.toBe('')
-
-    await notes.openQuickAdd()
-    const title = notes.quickAdd.title
-    await title.fill('Selectable')
-    await userEvent.dblClick(title)
-
-    const field = title.element()
-    if (!(field instanceof HTMLInputElement)) throw new Error('title field is not an input')
-    const selected = (field.selectionEnd ?? 0) - (field.selectionStart ?? 0)
-    expect(
-      selected,
-      'the field exemption is missing — on iOS this is a keyboard that refuses to place a caret, not a CSS bug',
-    ).toBeGreaterThan(0)
   })
 })

@@ -1,5 +1,6 @@
 import { describe, expect } from 'vitest'
 import { it } from '../fixtures'
+import { stubInstallPromptAvailable } from '../helpers/installEvent'
 
 /**
  * The 44px floor, asserted where it is actually observable.
@@ -88,8 +89,8 @@ function report(undersized: ReadonlyArray<Undersized>): string {
 }
 
 describe('touch targets', () => {
-  it('runs on a coarse pointer at all', async ({ notes }) => {
-    await notes.expectNoNotes()
+  it('runs on a coarse pointer at all', async ({ settings }) => {
+    await settings.expectReady()
 
     // Without this the whole tier is a second desktop run and every sweep
     // below grades the collapsed `pointer-fine:` sizes — passing while
@@ -101,25 +102,20 @@ describe('touch targets', () => {
     expect(matchMedia('(hover: hover)').matches).toBe(false)
   })
 
-  it('clears the floor on the notes screen', async ({ notes }) => {
-    await notes.expectNoNotes()
-
-    const undersized = undersizedControls(document.body)
-    expect(undersized, report(undersized)).toEqual([])
-  })
-
-  it('clears the floor in the quick-add sheet', async ({ notes }) => {
-    await notes.openQuickAdd()
-
-    // The sheet is portalled outside the mounted container, so the sweep is
-    // rooted at the document rather than at the screen.
-    const undersized = undersizedControls(document.body)
-    expect(undersized, report(undersized)).toEqual([])
-  })
-
   it('clears the floor on the settings screen', async ({ settings }) => {
     await settings.expectReady()
 
+    const undersized = undersizedControls(document.body)
+    expect(undersized, report(undersized)).toEqual([])
+  })
+
+  it('clears the floor in a dialog', async ({ settings }) => {
+    stubInstallPromptAvailable()
+    await settings.install.expectVisible()
+    await settings.install.openDialog()
+
+    // A dialog is portalled outside the mounted container, so the sweep is
+    // rooted at the document rather than at the screen.
     const undersized = undersizedControls(document.body)
     expect(undersized, report(undersized)).toEqual([])
   })

@@ -7,7 +7,7 @@ import { UpdatePrompt } from './updatePrompt'
 /**
  * Screen objects: the browser tiers' page-object DSL.
  *
- * A spec says what the user did (`addNote`, `deleteNote`, `expectNote`); the
+ * A spec says what the user did (`importBackup`, `openInstallDialog`); the
  * screen object holds the only copy of *how* — which role, which accessible
  * name, which lazy-loaded part has to be on screen first. Renaming a label
  * or reshaping a component is then one edit here rather than a grep across
@@ -19,15 +19,15 @@ import { UpdatePrompt } from './updatePrompt'
  *   query, it does not replace it with a test id — a screen object that
  *   reaches for `[data-testid]` has stopped testing what a user can find.
  * - **They stop at the UI.** Assertions about IndexedDB stay in the spec:
- *   that a note survived to disk is the point of the test, not a detail of
- *   the page. `notesFlow.spec.ts` is the worked example.
+ *   that a row survived to disk is the point of the test, not a detail of
+ *   the page.
  *
- * One class per screen, mirroring `src/views/`; nested parts (the quick-add
- * sheet) get their own object, mirroring the component that renders them.
- * `AppScreen` holds what every screen shares. Subclasses own the mounting —
- * `NotesScreen.open()` is the entry point, `close()` the teardown. Specs get
- * both through the fixtures in `src/__tests__/fixtures.ts` rather than
- * calling them by hand.
+ * One class per screen, mirroring `src/views/`; nested parts (a bottom sheet
+ * a screen opens) get their own object, mirroring the component that renders
+ * them. `AppScreen` holds what every screen shares. Subclasses own the
+ * mounting — `SettingsScreen.open()` is the entry point, `close()` the
+ * teardown. Specs get both through the fixtures in
+ * `src/__tests__/fixtures.ts` rather than calling them by hand.
  *
  * Every `expect*` method is a field wrapped in `vi.defineHelper`, not a plain
  * method: the wrapper strips this file's frames from the stack, so a failure
@@ -37,14 +37,14 @@ import { UpdatePrompt } from './updatePrompt'
  * It is applied uniformly, but it is not uniformly load-bearing. A locator
  * assertion (`expect.element`) is already attributed to its call site by the
  * browser runner, so wrapping one changes nothing today. A plain `expect` or
- * an `expect.poll` is not — `NotesScreen.expectOrder` polls, and without the
- * wrapper its failures point in here. The rule is uniform so that adding an
- * assertion never requires knowing which of the two kinds you just wrote.
+ * an `expect.poll` is not, and its failures would point in here. The rule is
+ * uniform so that adding an assertion never requires knowing which of the two
+ * kinds you just wrote.
  */
 export abstract class AppScreen {
   /**
    * The install banner and dialog, mounted app-wide in App.vue rather than by
-   * any one view — so they hang off the base class, not off NotesScreen.
+   * any one view — so they hang off the base class, not off one screen.
    */
   readonly install = new InstallPrompt()
 

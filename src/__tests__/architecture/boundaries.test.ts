@@ -11,10 +11,33 @@
  * each boundary and assert it is rejected. ESLint is the layer that covers
  * .vue, so this is also the proof that the SFC hole is closed.
  */
+import { existsSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { ESLint } from 'eslint'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 const RULE = 'no-restricted-imports'
+
+/**
+ * The feature scopes in `eslint.config.ts` are generated from the directories
+ * that actually exist under `src/features/`, so a fixture path inside a
+ * feature is only linted when that feature is really there. Between removing
+ * the notes worked example and adding the first training feature there are
+ * none — and a case that cannot run has to say so, rather than pass because
+ * no scope matched it.
+ */
+const FEATURES_DIR = fileURLToPath(new URL('../../features/', import.meta.url))
+
+const FEATURES = existsSync(FEATURES_DIR)
+  ? readdirSync(FEATURES_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+  : []
+
+/** A feature that exists, for the cases that need one, or nothing to run. */
+const FEATURE = FEATURES[0]
+const describeWithFeature = FEATURE === undefined ? describe.skip : describe
+const inFeature = (path: string): string => `src/features/${FEATURE ?? 'none'}/${path}`
 
 let eslint: ESLint
 
@@ -32,10 +55,10 @@ async function lint(filePath: string, code: string): Promise<string[]> {
 const sfc = (importLine: string) =>
   `<script setup lang="ts">\n${importLine}\n</script>\n\n<template>\n  <div />\n</template>\n`
 
-describe('feature isolation', () => {
+describeWithFeature('feature isolation', () => {
   it('rejects a feature importing another feature', async () => {
     const rules = await lint(
-      'src/features/notes/atoms.ts',
+      inFeature('atoms.ts'),
       `import { thing } from '@/features/other/thing'\nexport const x = thing\n`,
     )
     expect(rules).toContain(RULE)
@@ -43,7 +66,7 @@ describe('feature isolation', () => {
 
   it('rejects it from a .vue file too — the case ArchUnitTS cannot see', async () => {
     const rules = await lint(
-      'src/features/notes/components/NoteCard.vue',
+      inFeature('components/SessionRow.vue'),
       sfc(`import { thing } from '@/features/other/thing'\nvoid thing`),
     )
     expect(rules).toContain(RULE)
@@ -51,8 +74,10 @@ describe('feature isolation', () => {
 
   it('allows a feature to import itself', async () => {
     const rules = await lint(
-      'src/features/notes/components/NoteCard.vue',
-      sfc(`import { sortNotes } from '@/features/notes/domain'\nvoid sortNotes`),
+      inFeature('components/SessionRow.vue'),
+      sfc(
+        `import { sortSessions } from '@/features/${FEATURE ?? 'none'}/domain'\nvoid sortSessions`,
+      ),
     )
     expect(rules).not.toContain(RULE)
   })
@@ -62,20 +87,20 @@ describe('shared layers', () => {
   it.each([
     [
       'src/components/organisms/OrganismAppShell.vue',
-      sfc(`import { x } from '@/features/notes/atoms'\nvoid x`),
+      sfc(`import { x } from '@/features/training/atoms'\nvoid x`),
     ],
-    ['src/composables/useThing.ts', `export { x } from '@/features/notes/atoms'\n`],
-    ['src/stores/thing.ts', `export { x } from '@/features/notes/atoms'\n`],
-    ['src/lib/thing.ts', `export { x } from '@/features/notes/atoms'\n`],
-    ['src/db/thing.ts', `export { x } from '@/features/notes/atoms'\n`],
+    ['src/composables/useThing.ts', `export { x } from '@/features/training/atoms'\n`],
+    ['src/stores/thing.ts', `export { x } from '@/features/training/atoms'\n`],
+    ['src/lib/thing.ts', `export { x } from '@/features/training/atoms'\n`],
+    ['src/db/thing.ts', `export { x } from '@/features/training/atoms'\n`],
   ])('rejects %s depending on a feature', async (filePath, code) => {
     expect(await lint(filePath, code)).toContain(RULE)
   })
 
   it('allows a view to compose a feature', async () => {
     const rules = await lint(
-      'src/views/NotesView.vue',
-      sfc(`import { x } from '@/features/notes/atoms'\nvoid x`),
+      'src/views/PlansView.vue',
+      sfc(`import { x } from '@/features/training/atoms'\nvoid x`),
     )
     expect(rules).not.toContain(RULE)
   })
@@ -83,13 +108,13 @@ describe('shared layers', () => {
 
 describe('db encapsulation', () => {
   it.each([
-    'src/features/notes/atoms.ts',
+    ...(FEATURE === undefined ? [] : [inFeature('atoms.ts')]),
     'src/components/organisms/OrganismAppShell.vue',
     'src/composables/useThing.ts',
     'src/stores/thing.ts',
     'src/views/SettingsView.vue',
   ])('rejects %s reaching past @/db', async (filePath) => {
-    const importLine = `import { listNotes } from '@/db/repositories/notes'\nvoid listNotes`
+    const importLine = `import { listWorkouts } from '@/db/repositories/workouts'\nvoid listWorkouts`
     const code = filePath.endsWith('.vue') ? sfc(importLine) : `${importLine}\n`
     expect(await lint(filePath, code)).toContain(RULE)
   })
@@ -103,13 +128,13 @@ describe('db encapsulation', () => {
   })
 
   it('allows the public surface', async () => {
-    const rules = await lint('src/features/notes/atoms.ts', `export { listNotes } from '@/db'\n`)
+    const rules = await lint('src/views/PlansView.vue', `export { listWorkouts } from '@/db'\n`)
     expect(rules).not.toContain(RULE)
   })
 
   it('lets the migration spec reach the schema directly', async () => {
     const rules = await lint(
-      'src/__tests__/db/migration.spec.ts',
+      'src/__tests__/db/backup.spec.ts',
       `export { db } from '@/db/schema'\n`,
     )
     expect(rules).not.toContain(RULE)
@@ -136,7 +161,7 @@ describe('functional core, imperative shell', () => {
   describe('the shell stays thin', () => {
     it('rejects a component that nests a conditional', async () => {
       const rules = await lint(
-        'src/views/NotesView.vue',
+        'src/views/PlansView.vue',
         sfc(`function pick(a: number, b: number) {
   if (a > 0) {
     if (b > 0) return 'both'
@@ -150,7 +175,7 @@ void pick`),
 
     it('allows a guard clause — one level is how a shell says "not my job"', async () => {
       const rules = await lint(
-        'src/views/NotesView.vue',
+        'src/views/PlansView.vue',
         sfc(`function pick(a: number) {
   if (a < 0) return 'none'
   return 'some'
@@ -173,7 +198,7 @@ void pick`),
 
     it('applies to a feature component too, not just views', async () => {
       const rules = await lint(
-        'src/features/notes/components/NoteCard.vue',
+        'src/features/training/components/SessionRow.vue',
         sfc(`function pick(a: number, b: number) {
   if (a > 0) {
     if (b > 0) return 'both'
@@ -199,7 +224,7 @@ void pick`),
       ['navigator', `export const ua = () => navigator.userAgent`, 'no-restricted-globals'],
       ['fetch', `export const get = () => fetch('/x')`, 'no-restricted-globals'],
     ])('rejects %s in a domain module', async (_label, code, rule) => {
-      expect(await lint('src/features/notes/domain.ts', code)).toContain(rule)
+      expect(await lint('src/features/training/domain.ts', code)).toContain(rule)
     })
 
     it('rejects a core module running its own program', async () => {
@@ -207,7 +232,7 @@ void pick`),
       // job, and a core module that does it takes the runtime choice — and
       // TestClock — away from every caller.
       const rules = await lint(
-        'src/features/notes/domain.ts',
+        'src/features/training/domain.ts',
         `import { Effect } from 'effect'\nexport const now = () => Effect.runSync(Effect.succeed(1))`,
       )
       expect(rules).toContain('no-restricted-syntax')
@@ -271,7 +296,7 @@ describe('ui encapsulation', () => {
   it.each([
     'src/views/SettingsView.vue',
     'src/components/organisms/OrganismAppShell.vue',
-    'src/features/notes/components/NoteCard.vue',
+    ...(FEATURE === undefined ? [] : [inFeature('components/SessionRow.vue')]),
   ])('rejects %s importing reka-ui directly', async (filePath) => {
     const rules = await lint(filePath, sfc(`import { DialogRoot } from 'reka-ui'\nvoid DialogRoot`))
     expect(rules).toContain(RULE)
@@ -279,7 +304,7 @@ describe('ui encapsulation', () => {
 
   it('rejects cva outside the primitives', async () => {
     const rules = await lint(
-      'src/features/notes/components/NoteCard.vue',
+      'src/views/PlansView.vue',
       sfc(`import { cva } from 'class-variance-authority'\nvoid cva`),
     )
     expect(rules).toContain(RULE)
@@ -342,7 +367,7 @@ describe('ui encapsulation', () => {
   it('keeps a primitive out of the data layer', async () => {
     const rules = await lint(
       'src/components/molecules/dialog/MoleculeDialogContent.vue',
-      sfc(`import { listNotes } from '@/db'\nvoid listNotes`),
+      sfc(`import { listWorkouts } from '@/db'\nvoid listWorkouts`),
     )
     expect(rules).toContain(RULE)
   })
@@ -414,7 +439,7 @@ describe('atomic tiers point one way', () => {
   it('keeps a composite out of the features it is shared by', async () => {
     const rules = await lint(
       'src/components/organisms/OrganismAppShell.vue',
-      sfc(`import { notesAtom } from '@/features/notes/atoms'\nvoid notesAtom`),
+      sfc(`import { plansAtom } from '@/features/training/atoms'\nvoid plansAtom`),
     )
     expect(rules).toContain(RULE)
   })
@@ -489,7 +514,7 @@ describe('composable conventions', () => {
 
   it('applies to a feature-owned composable too', async () => {
     const rules = await lint(
-      'src/features/notes/useThing.ts',
+      'src/features/training/useThing.ts',
       `import { ref } from 'vue'\nexport function useThing() {\n  return ref(0)\n}`,
     )
     expect(rules).toContain(SYNTAX)
@@ -498,7 +523,7 @@ describe('composable conventions', () => {
 
   it('leaves components alone — a caller is not a composable', async () => {
     const rules = await lint(
-      'src/views/NotesView.vue',
+      'src/views/PlansView.vue',
       sfc(`import { ref } from 'vue'\nconst count = ref(0)\nvoid count`),
     )
     expect(rules).not.toContain(SYNTAX)

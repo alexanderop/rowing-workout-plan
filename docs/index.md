@@ -35,6 +35,15 @@ There is no `CLAUDE.md` and no `AGENTS.md`. A `SessionStart` hook (`.claude/hook
 
 Adding a doc means adding a concept file with frontmatter and linking it from this table, so the bundle stays conformant and navigable.
 
+> **The worked examples are mid-move.** These concepts teach through the
+> `notes` feature, and that feature has been deleted — `src/features/` is empty
+> and `/` opens Settings. Every **rule** below and in the concept files still
+> holds and is still enforced; only the file paths and snippets naming
+> `NotesView`, `NoteCard`, `useNoteAge`, `NotesRepo` or the `notes` table point
+> at code that now lives in `git show HEAD~1`. The plan in [`specs/`](../specs/)
+> rebuilds the app as an erg trainer slice by slice, and each concept is
+> rewritten against the real feature as the slice that provides it lands.
+
 ## Commands
 
 ```bash

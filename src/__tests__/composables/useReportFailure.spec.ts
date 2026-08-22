@@ -55,15 +55,15 @@ const it = base.extend('logs', async () => {
  */
 it('tells the user and annotates the log with its boundary', async ({ logs, mountComposable }) => {
   const { result } = mountComposable(() => ({
-    reportFailure: useReportFailure('notes'),
+    reportFailure: useReportFailure('settings'),
     toast: useToastStore(),
   }))
 
-  const recover = result.reportFailure('delete note', 'Could not delete the note')
+  const recover = result.reportFailure('export backup', 'Could not export your data')
   await Effect.runPromise(recover({ _tag: 'DatabaseError' }).pipe(Effect.provide(logs.layer)))
 
   // The half a user experiences.
-  expect(result.toast.toasts).toMatchObject([{ message: 'Could not delete the note' }])
+  expect(result.toast.toasts).toMatchObject([{ message: 'Could not export your data' }])
 
   // The half a developer reads at 3am. These three keys are the whole reason
   // this is one helper and not a `catchTag` body copied into each component;
@@ -72,7 +72,7 @@ it('tells the user and annotates the log with its boundary', async ({ logs, moun
   expect(logs.entries).toMatchObject([
     {
       level: 'Error',
-      annotations: { boundary: 'notes', operation: 'delete note', failure: 'DatabaseError' },
+      annotations: { boundary: 'settings', operation: 'export backup', failure: 'DatabaseError' },
     },
   ])
 })

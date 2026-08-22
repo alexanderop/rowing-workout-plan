@@ -1,58 +1,26 @@
 import { describe, expect, it } from '@effect/vitest'
-import { Effect, Schema } from 'effect'
-import { FastCheck } from 'effect/testing'
+import { Effect } from 'effect'
 import { decodeBackup, exportData, importData } from '@/db/backup'
-import { StoredDbNote, toNote } from '@/db/converters'
 import { BackupInvalidError } from '@/db/errors'
-import { NotesRepo } from '@/db/repositories/notes'
+import { EMPTY_BACKUP } from '../../helpers/backup'
 
 /**
- * decodeBackup is a pure Effect program — no IndexedDB, no runtime setup —
- * so the import rules run in the Node unit tier. `it.effect` from
- * @effect/vitest runs the returned Effect for us (with test services such as
- * TestClock provided); failures stay values, promoted into the success
- * channel with `Effect.flip` where a test wants to look at them.
+ * The backup programs are pure Effect — no IndexedDB, no runtime setup — so
+ * the import rules run in the Node unit tier. `it.effect` from @effect/vitest
+ * runs the returned Effect for us (with test services such as TestClock
+ * provided); failures stay values, promoted into the success channel with
+ * `Effect.flip` where a test wants to look at them.
  *
- * The full programs (exportData, importData) need a NotesRepo — the
- * Ref-backed `NotesRepo.testLayer` provides one without IndexedDB, so they
- * run in this tier too. The browser tier keeps testing the same programs
- * against real Dexie through the `runDb` promise edge.
+ * The browser tier keeps driving the same programs against real Dexie through
+ * the `runDb` promise edge — the two are not redundant, because only that one
+ * can tell you the storage engine agrees.
  */
-
-const validNote = {
-  id: 'a',
-  title: 'Hello',
-  body: 'world',
-  pinned: true,
-  createdAt: 1,
-  updatedAt: 2,
-}
-
-const validBackup = {
-  app: 'vue-pwa-starter',
-  version: 2,
-  exportedAt: '2026-01-01T00:00:00.000Z',
-  notes: [validNote],
-}
-
 describe('decodeBackup', () => {
-  it.effect('accepts a current (v2) payload', () =>
+  it.effect('accepts a current payload', () =>
     Effect.gen(function* () {
-      const payload = yield* decodeBackup(validBackup)
-      expect(payload.notes).toHaveLength(1)
-      expect(payload.version).toBe(2)
-    }),
-  )
-
-  it.effect('accepts a legacy v1 payload whose notes lack pinned/updatedAt', () =>
-    Effect.gen(function* () {
-      const payload = yield* decodeBackup({
-        app: 'vue-pwa-starter',
-        version: 1,
-        exportedAt: '2024-01-01T00:00:00.000Z',
-        notes: [{ id: 'legacy', title: 'From the past', body: '', createdAt: 42 }],
-      })
-      expect(payload.version).toBe(1)
+      const payload = yield* decodeBackup(EMPTY_BACKUP)
+      expect(payload.app).toBe('vue-pwa-starter')
+      expect(payload.exportedAt).toBe(EMPTY_BACKUP.exportedAt)
     }),
   )
 
@@ -67,15 +35,21 @@ describe('decodeBackup', () => {
 
   it.effect('rejects a backup from another app', () =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(decodeBackup({ ...validBackup, app: 'someone-elses-app' }))
+      const error = yield* Effect.flip(decodeBackup({ ...EMPTY_BACKUP, app: 'someone-elses-app' }))
       expect(error).toBeInstanceOf(BackupInvalidError)
     }),
   )
 
-  it.effect('rejects versions newer than this app understands', () =>
+  it.effect('rejects versions this app does not understand', () =>
     Effect.gen(function* () {
-      const error = yield* Effect.flip(decodeBackup({ ...validBackup, version: 3 }))
-      expect(error).toBeInstanceOf(BackupInvalidError)
+      // Both directions: a payload from a future release, and one from the
+      // notes-era schema whose rows have nowhere to go in this app.
+      expect(yield* Effect.flip(decodeBackup({ ...EMPTY_BACKUP, version: 99 }))).toBeInstanceOf(
+        BackupInvalidError,
+      )
+      expect(yield* Effect.flip(decodeBackup({ ...EMPTY_BACKUP, version: 2 }))).toBeInstanceOf(
+        BackupInvalidError,
+      )
     }),
   )
 
@@ -89,89 +63,33 @@ describe('decodeBackup', () => {
   )
 })
 
-describe('backup programs against the in-memory NotesRepo', () => {
-  it.effect('round-trips notes through import and export', () =>
+describe('the backup programs', () => {
+  it.effect('exports a payload its own importer accepts', () =>
     Effect.gen(function* () {
-      const count = yield* importData(validBackup)
-      expect(count).toBe(1)
-
       const payload = yield* exportData
-      expect(payload.version).toBe(2)
-      expect(payload.notes).toMatchObject([
-        { id: 'a', title: 'Hello', body: 'world', pinned: true },
-      ])
-    }).pipe(Effect.provide(NotesRepo.testLayer)),
+
+      // The round trip is the contract, and asserting it as a program rather
+      // than field by field is what keeps it true when a table is added: a
+      // row that reaches the export but not the schema fails right here.
+      yield* importData(payload)
+      expect(payload.app).toBe('vue-pwa-starter')
+    }),
   )
 
-  it.effect('normalizes legacy v1 rows on import', () =>
+  it.effect('stamps the export with the clock rather than the wall clock', () =>
     Effect.gen(function* () {
-      yield* importData({
-        app: 'vue-pwa-starter',
-        version: 1,
-        exportedAt: '2024-01-01T00:00:00.000Z',
-        notes: [{ id: 'legacy', title: 'From the past', body: '', createdAt: 42 }],
-      })
-
-      const repo = yield* NotesRepo
-      expect(yield* repo.list()).toEqual([
-        {
-          id: 'legacy',
-          title: 'From the past',
-          body: '',
-          pinned: false,
-          createdAt: 42,
-          updatedAt: 42,
-        },
-      ])
-    }).pipe(Effect.provide(NotesRepo.testLayer)),
-  )
-
-  it.effect('overwrites rows with matching ids instead of duplicating them', () =>
-    Effect.gen(function* () {
-      yield* importData(validBackup)
-      yield* importData({ ...validBackup, notes: [{ ...validNote, title: 'Updated' }] })
-
-      const repo = yield* NotesRepo
-      expect(yield* repo.list()).toMatchObject([{ id: 'a', title: 'Updated' }])
-    }).pipe(Effect.provide(NotesRepo.testLayer)),
-  )
-
-  it.effect('stamps exportedAt from the Clock service (TestClock here)', () =>
-    Effect.gen(function* () {
+      // TestClock starts at the epoch, which is the whole reason `exportData`
+      // yields `DateTime.now` instead of reading `Date.now()`: the timestamp
+      // is an input, so it is assertable.
       const payload = yield* exportData
       expect(payload.exportedAt).toBe('1970-01-01T00:00:00.000Z')
-    }).pipe(Effect.provide(NotesRepo.testLayer)),
+    }),
   )
 
-  // Property-based round-trip over the whole space of valid backups, not just
-  // the two fixtures above. `Schema.toArbitrary` turns the row schema into a
-  // fast-check generator (mixing v1 and v2 shapes, since the optional fields
-  // are part of the schema); ids are kept unique because import overwrites on
-  // id, which would make the count assertion meaningless for duplicates.
-  const storedRows = FastCheck.uniqueArray(Schema.toArbitrary(StoredDbNote), {
-    selector: (row) => row.id,
-  })
-
-  it.effect.prop(
-    'imports any valid backup fully and exports every note normalized',
-    { rows: storedRows },
-    ({ rows }) =>
-      Effect.gen(function* () {
-        const count = yield* importData({
-          app: 'vue-pwa-starter',
-          version: 2,
-          exportedAt: '2026-01-01T00:00:00.000Z',
-          notes: rows,
-        })
-        expect(count).toBe(rows.length)
-
-        const payload = yield* exportData
-        const exported = new Map(payload.notes.map((note) => [note.id, note]))
-
-        expect(payload.notes).toHaveLength(rows.length)
-        for (const row of rows) {
-          expect(exported.get(row.id)).toEqual(toNote(row))
-        }
-      }).pipe(Effect.provide(NotesRepo.testLayer)),
+  it.effect('refuses anything that is not a backup', () =>
+    Effect.gen(function* () {
+      const error = yield* Effect.flip(importData({ app: 'vue-pwa-starter' }))
+      expect(error).toBeInstanceOf(BackupInvalidError)
+    }),
   )
 })

@@ -4,7 +4,20 @@
   "treatTagHintsAsErrors": true,
   "entry": ["index.html"],
   "project": ["src/**/*.ts", "src/**/*.vue", "src/**/*.css"],
-  "ignore": ["src/components/*/*/**"],
+  // src/components/*/*/** — a compound primitive reaches the app through its
+  // barrel, so knip sees each part as unreferenced.
+  //
+  // AtomInput and AtomTextarea — the primitive library is the starter's
+  // product, not part of any one feature, and these two are the only atoms no
+  // screen happens to render since the notes worked example was removed. They
+  // are graded by the arch tier like every other primitive
+  // (__tests__/architecture/primitives.test.ts, touchConventions.test.ts);
+  // drop these two entries again as soon as a form screen binds them.
+  "ignore": [
+    "src/components/*/*/**",
+    "src/components/atoms/AtomInput.vue",
+    "src/components/atoms/AtomTextarea.vue"
+  ],
   "vitest": {
     "entry": ["src/__tests__/**/*.spec.ts", "src/__tests__/**/*.test.ts"]
   }

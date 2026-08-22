@@ -1,59 +1,14 @@
 export default {
   nav: {
     ariaLabel: 'Main navigation',
-    notes: 'Notes',
     settings: 'Settings',
   },
   common: {
     buttons: {
       close: 'Close',
-      save: 'Save',
     },
     aria: {
       goBack: 'Go back',
-    },
-  },
-  quickAdd: {
-    open: 'Add a note',
-  },
-  notes: {
-    title: 'Notes',
-    empty: {
-      title: 'No notes yet',
-      body: 'Tap the + button to capture your first note. Everything stays on this device.',
-    },
-    pinned: 'Pinned',
-    form: {
-      heading: 'New note',
-      description: 'Saved locally, available offline.',
-      titleLabel: 'Title',
-      titlePlaceholder: 'What is this about?',
-      bodyLabel: 'Note',
-      bodyPlaceholder: 'Write it down…',
-    },
-    // How long ago a note was edited. {n} is vue-i18n's plural count; the
-    // `one | many` forms keep "1 day ago" grammatical in every locale.
-    age: {
-      justNow: 'Just now',
-      minutes: '{n} min ago',
-      hours: '{n} hr ago',
-      days: '{n} day ago | {n} days ago',
-    },
-    actions: {
-      pin: 'Pin note {title}',
-      unpin: 'Unpin note {title}',
-      delete: 'Delete note {title}',
-    },
-    // Rendered inline in place of the list — a load failure is a state of
-    // the page, not a passing notification.
-    loadError: 'Your notes could not be loaded',
-    toast: {
-      created: 'Note saved',
-      deleted: 'Note deleted',
-      saveFailed: 'That note could not be saved',
-      titleRequired: 'A note needs a title',
-      deleteFailed: 'That note could not be deleted',
-      pinFailed: 'That note could not be updated',
     },
   },
   settings: {
@@ -94,7 +49,7 @@ export default {
       dialog: {
         title: 'Install this app',
         description:
-          'Installed, it opens like any other app — full screen, offline, and your notes stay on this device.',
+          'Installed, it opens like any other app — full screen, offline, and your data stays on this device.',
         action: 'Install',
         // The button branch: the browser has already offered us a prompt.
         prompt: 'Your browser can install it directly.',

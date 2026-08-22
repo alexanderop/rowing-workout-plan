@@ -4,8 +4,8 @@
  * The a11y tier sweeps whole *screens*, not components in isolation, so
  * "this component has an a11y test" is not something the tier can be asked
  * directly — a component only gets swept if some sweep actually renders it,
- * and a component behind a conditional (a toast, an install banner, a note
- * card on an empty list) is not rendered by the default screen sweeps at all.
+ * and a component behind a conditional (a toast, an install banner) is not
+ * rendered by the default screen sweeps at all.
  *
  * This file is the answer written down: every component in the app names the
  * sweep that renders it, or names why it is not swept. `architecture/
@@ -20,11 +20,8 @@
  * The values are noun phrases: the spec appends "has no violations".
  */
 export const SWEEPS = {
-  notesHome: 'notes home',
-  notesHomeWithNote: 'a note on the notes home',
-  toast: 'a toast',
   settings: 'settings',
-  quickAdd: 'the quick-add sheet',
+  toast: 'a toast',
   installBanner: 'the install banner',
   installDialog: 'the install dialog',
   updateBanner: 'the update banner',
@@ -41,17 +38,14 @@ export type SweepId = keyof typeof SWEEPS
  * anyone wants checked.
  */
 export const A11Y_COVERAGE = {
-  'App.vue': 'notesHome',
-  'components/organisms/OrganismAppShell.vue': 'notesHome',
+  'App.vue': 'settings',
+  'components/organisms/OrganismAppShell.vue': 'settings',
   'components/molecules/MoleculePageHeader.vue': 'settings',
   'components/templates/TemplatePageLayout.vue': 'settings',
   'components/organisms/OrganismPwaInstallDialog.vue': 'installDialog',
   'components/organisms/OrganismPwaInstallPrompt.vue': 'installBanner',
   'components/molecules/MoleculePwaUpdatePrompt.vue': 'updateBanner',
   'components/molecules/MoleculeToastViewport.vue': 'toast',
-  'features/notes/components/NoteCard.vue': 'notesHomeWithNote',
-  'features/notes/components/QuickAddNoteSheet.vue': 'quickAdd',
-  'views/NotesView.vue': 'notesHome',
   'views/SettingsView.vue': 'settings',
 } satisfies Readonly<Record<string, SweepId>>
 

@@ -126,8 +126,9 @@
     -webkit-tap-highlight-color: transparent;
     /* App chrome is not a document: rows, tab labels and stat readouts are
        controls, not quotable text, and letting them be selected intercepts
-       the long-press a native app would spend on a context menu. Prose opts
-       back in with `select-text` — see NoteCard.vue. */
+       the long-press a native app would spend on a context menu. Prose — a
+       note a user typed, a coaching paragraph — opts back in with
+       `select-text` on the element that holds it. */
     -webkit-user-select: none;
     user-select: none;
     /* The second half of the same idea: without it, long-pressing a link

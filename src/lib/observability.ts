@@ -6,7 +6,7 @@ import { OtlpLogger, OtlpSerialization, OtlpTracer } from 'effect/unstable/obser
  * Telemetry export for the Effect runtimes — development only, opt-in.
  *
  * The instrumentation itself is already in the code and costs nothing extra:
- * every `Effect.fn('NotesRepo.list')` opens a named span, `Effect.withSpan`
+ * every `Effect.fn('WorkoutsRepo.list')` opens a named span, `Effect.withSpan`
  * wraps the backup programs, and `useReportFailure` emits annotated log
  * records on the fiber inside them. Without a tracer installed those spans are
  * built and dropped. This layer is what gives them somewhere to go.
@@ -16,9 +16,9 @@ import { OtlpLogger, OtlpSerialization, OtlpTracer } from 'effect/unstable/obser
  * post plain JSON over `fetch`, so there are no `@opentelemetry/*` SDK
  * dependencies to install or bundle.
  *
- * Local-first is why it stops at development. The user's notes never leave
- * their device, and neither should spans naming the operations they ran on
- * them. `import.meta.env.DEV` is a literal `false` in a production build, so
+ * Local-first is why it stops at development. The user's training log never
+ * leaves their device, and neither should spans naming the operations they
+ * ran on it. `import.meta.env.DEV` is a literal `false` in a production build, so
  * the whole branch — and the exporters it references — is dead code Rollup
  * drops; `pnpm size-limit` is the check that keeps that true.
  */

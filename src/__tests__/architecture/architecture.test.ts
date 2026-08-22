@@ -18,17 +18,36 @@
  * ESLint deliberate violations — .vue included — and asserts they are caught.
  * Read the two together; neither is sufficient alone.
  */
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { projectFiles } from 'archunit'
 import { describe, expect, it } from 'vitest'
 
-const FEATURES = readdirSync(new URL('../../features/', import.meta.url), {
-  withFileTypes: true,
-})
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => entry.name)
+// `src/features/` is absent, not empty, while the app has no features: the
+// notes worked example was the only one and git does not track a bare
+// directory. Reading it unguarded would throw at import and take every rule
+// in this file down with it.
+const FEATURES_DIR = fileURLToPath(new URL('../../features/', import.meta.url))
+
+const FEATURES = existsSync(FEATURES_DIR)
+  ? readdirSync(FEATURES_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+  : []
 
 const SHARED_FOLDERS = ['components', 'composables', 'stores', 'db', 'lib', 'types'] as const
+
+// `dependOnFiles().inFolder(x)` fails when *x* matches nothing, so a rule
+// about a directory that is not there yet reports as a violation rather than
+// as vacuous. Both of these are true between removing the notes worked
+// example and adding the first training feature and repository, and skipping
+// is the honest reading: there is nothing to hold to the rule, and the rule
+// comes back with the code it guards. `boundaries.test.ts` still proves
+// ESLint rejects both imports, from a .vue file included.
+const REPOSITORIES_DIR = fileURLToPath(new URL('../../db/repositories/', import.meta.url))
+
+const describeWithFeatures = FEATURES.length > 0 ? describe : describe.skip
+const describeWithRepositories = existsSync(REPOSITORIES_DIR) ? describe : describe.skip
 
 describe('circular dependencies', () => {
   for (const folder of ['features', 'components', 'composables', 'stores', 'db'] as const) {
@@ -39,7 +58,7 @@ describe('circular dependencies', () => {
   }
 })
 
-describe('feature isolation', () => {
+describeWithFeatures('feature isolation', () => {
   for (const feature of FEATURES) {
     it(`${feature} should not depend on other features`, async () => {
       const otherFeatures = FEATURES.filter((other) => other !== feature)
@@ -56,7 +75,7 @@ describe('feature isolation', () => {
   }
 })
 
-describe('layer dependencies', () => {
+describeWithFeatures('layer dependencies', () => {
   // No "should not depend on views" rules here: views are pure .vue files,
   // which ArchUnitTS does not parse, so those rules would match zero files
   // and fail as empty. The import direction into views is enforced by the
@@ -73,7 +92,7 @@ describe('layer dependencies', () => {
   }
 })
 
-describe('db encapsulation', () => {
+describeWithRepositories('db encapsulation', () => {
   for (const folder of ['features', 'components', 'composables', 'stores'] as const) {
     it(`${folder} should not import db repositories directly`, async () => {
       const rule = projectFiles()

@@ -1,5 +1,6 @@
 import { describe, expect } from 'vitest'
 import { it } from '../fixtures'
+import { stubInstallPromptAvailable } from '../helpers/installEvent'
 
 /**
  * ARIA snapshots (Vitest 4.1, experimental): the accessibility tree of a
@@ -18,13 +19,17 @@ import { it } from '../fixtures'
  * Rebaseline deliberately with `pnpm test:a11y -- --update`.
  */
 describe('accessibility tree', () => {
-  it('the tab bar names both destinations', async ({ notes }) => {
-    await expect.element(notes.tabBar).toMatchAriaSnapshot()
+  it('the tab bar names every destination', async ({ settings }) => {
+    await settings.expectReady()
+
+    await expect.element(settings.tabBar).toMatchAriaSnapshot()
   })
 
-  it('the quick-add sheet is a labelled dialog with a labelled form', async ({ notes }) => {
-    await notes.openQuickAdd()
+  it('the install dialog is a labelled dialog with described steps', async ({ settings }) => {
+    stubInstallPromptAvailable()
+    await settings.install.expectVisible()
+    await settings.install.openDialog()
 
-    await expect.element(notes.quickAdd.root).toMatchAriaSnapshot()
+    await expect.element(settings.install.dialog).toMatchAriaSnapshot()
   })
 })

@@ -1,21 +1,15 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`accessibility tree > the quick-add sheet is a labelled dialog with a labelled form 1`] = `
-- dialog "New note":
-  - heading "New note" [level=2]
-  - paragraph: Saved locally, available offline.
-  - text: Title
-  - textbox "Title":
-    - /placeholder: What is this about?
-  - text: Note
-  - textbox "Note":
-    - /placeholder: Write it down…
-  - button "Save" [disabled]
+exports[`accessibility tree > the install dialog is a labelled dialog with described steps 1`] = `
+- dialog "Install this app":
+  - heading "Install this app" [level=2]
+  - paragraph: Installed, it opens like any other app — full screen, offline, and your data stays on this device.
+  - paragraph: Your browser can install it directly.
+  - button "Install"
+  - button "Close"
 `;
 
-exports[`accessibility tree > the tab bar names both destinations 1`] = `
+exports[`accessibility tree > the tab bar names every destination 1`] = `
 - navigation "Main navigation":
-  - button "Notes"
-  - button "Add a note"
   - button "Settings"
 `;

@@ -36,7 +36,7 @@ export interface MountedComposable<T> {
  * composables in this app need this and which genuinely do not.
  *
  * ```ts
- * const { result: age } = mountComposable(() => useNoteAge(() => updatedAt))
+ * const { result: locale } = mountComposable(() => useLocale())
  * ```
  *
  * Prefer the `mountComposable` fixture in `../fixtures.ts`, which registers

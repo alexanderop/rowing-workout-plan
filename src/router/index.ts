@@ -2,7 +2,6 @@ import type { RouteRecordRaw, Router, RouterHistory } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 
 export const RouteNames = {
-  notes: 'notes',
   settings: 'settings',
 } as const
 
@@ -19,11 +18,10 @@ declare module 'vue-router' {
 }
 
 const routes: Array<RouteRecordRaw> = [
-  {
-    path: '/',
-    name: RouteNames.notes,
-    component: () => import('@/views/NotesView.vue'),
-  },
+  // Settings is the only screen there is, so it is also the home screen. The
+  // redirect rather than a second record: one route name means the tab bar
+  // still marks it current when the app opens on `/`.
+  { path: '/', redirect: { name: RouteNames.settings } },
   {
     path: '/settings',
     name: RouteNames.settings,

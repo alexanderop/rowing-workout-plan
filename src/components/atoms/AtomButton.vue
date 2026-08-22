@@ -41,7 +41,7 @@ const buttonVariants = cva(
       },
       size: {
         default: 'h-touch-target px-4 py-2 pointer-fine:h-10',
-        sm: 'h-10 rounded-md px-3 pointer-fine:h-9',
+        sm: 'h-touch-target rounded-md px-3 pointer-fine:h-9',
         lg: 'h-12 rounded-md px-6 pointer-fine:h-11',
         icon: 'size-touch-target pointer-fine:size-10',
       },

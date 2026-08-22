@@ -1,55 +1,40 @@
 import { Effect } from 'effect'
 import { beforeEach, describe, expect, it } from 'vitest'
-import {
-  BackupInvalidError,
-  createNote,
-  exportData,
-  importData,
-  listNotes,
-  resetDatabase,
-  runDb,
-} from '@/db'
+import { exportData, importData, resetDatabase, runDb } from '@/db'
+import { EMPTY_BACKUP } from '../helpers/backup'
 
+/**
+ * The backup round trip against real IndexedDB. The database has no tables
+ * yet — the notes worked example was removed and the training tables land in
+ * their own slice — so what this proves today is the envelope: an export
+ * decodes as an import, and anything else is refused by tag rather than
+ * half-applied. A table added later is added to these assertions in the same
+ * commit, which is the point of keeping the spec rather than deleting it with
+ * the rows it used to carry.
+ */
 describe('backup export/import', () => {
   beforeEach(async () => {
     await resetDatabase()
   })
 
-  it('round-trips notes through export and import', async () => {
-    await runDb(createNote({ title: 'Keep me', body: 'important' }).pipe(Effect.orDie))
-    const payload = await runDb(exportData.pipe(Effect.orDie))
+  it('round-trips an export back through import', async () => {
+    const payload = await runDb(exportData)
+
+    expect(payload).toMatchObject({ app: 'vue-pwa-starter' })
+    expect(payload.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
 
     await resetDatabase()
-    expect(await runDb(listNotes.pipe(Effect.orDie))).toHaveLength(0)
 
-    const count = await runDb(importData(payload).pipe(Effect.orDie))
-
-    expect(count).toBe(1)
-    expect(await runDb(listNotes.pipe(Effect.orDie))).toMatchObject([
-      { title: 'Keep me', body: 'important' },
-    ])
+    // Importing what we just exported is the whole contract; `orDie` says a
+    // failure here would be a bug in the test's premise, not the assertion.
+    await runDb(importData(payload).pipe(Effect.orDie))
   })
 
-  it('imports a v1-era backup (rows without pinned/updatedAt)', async () => {
-    const legacyPayload = {
-      app: 'vue-pwa-starter',
-      version: 1,
-      exportedAt: '2024-01-01T00:00:00.000Z',
-      notes: [{ id: 'legacy', title: 'From the past', body: '', createdAt: 42 }],
-    }
-
-    await runDb(importData(legacyPayload).pipe(Effect.orDie))
-
-    expect(await runDb(listNotes.pipe(Effect.orDie))).toEqual([
-      {
-        id: 'legacy',
-        title: 'From the past',
-        body: '',
-        pinned: false,
-        createdAt: 42,
-        updatedAt: 42,
-      },
-    ])
+  it('accepts the payload shape the rest of the suite hands around', async () => {
+    // The fixture is written out by hand rather than produced by exportData,
+    // so a version bump that forgets one of them fails here rather than
+    // passing because both sides moved together.
+    await runDb(importData(EMPTY_BACKUP).pipe(Effect.orDie))
   })
 
   it('rejects payloads that are not backups with a tagged error', async () => {
@@ -58,7 +43,6 @@ describe('backup export/import', () => {
     // "the write failed" with `catchTags` instead of `instanceof`.
     const error = await runDb(importData({ hello: 'world' }).pipe(Effect.flip, Effect.orDie))
 
-    expect(error).toBeInstanceOf(BackupInvalidError)
-    expect(await runDb(listNotes.pipe(Effect.orDie))).toHaveLength(0)
+    expect(error._tag).toBe('Db.BackupInvalidError')
   })
 })

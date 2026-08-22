@@ -34,8 +34,7 @@ label — so one run tells you everything that is broken.
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | App shell        | Config-driven bottom nav ([`OrganismAppShell.vue`](src/components/organisms/OrganismAppShell.vue)), optional center FAB slot, `meta.hideNav` escape hatch, safe-area insets, `TemplatePageLayout`/`MoleculePageHeader`, keyboard-aware bottom sheet (`MoleculeDialogContent`), toast viewport                                                      |
 | UI components    | shadcn-vue-style primitives over [Reka UI](https://reka-ui.com/), copied rather than installed — compound parts, `cn()` class merging, `data-slot` targeting, `as-child`. The layer boundary is lint- and test-enforced. See [docs/ui-components.md](docs/ui-components.md)                                                                        |
-| Local-first data | Dexie schema with a worked v1→v2 migration, converter pattern for reading old data forever, repository layer, zod-validated JSON export/import                                                                                                                                                                                                     |
-| Example feature  | `src/features/notes` — one deliberately boring feature that touches every layer, with a test in every tier. Copy it, then delete it                                                                                                                                                                                                                |
+| Local-first data | Dexie schema with a converter pattern for reading old data forever, repository layer, schema-validated JSON export/import                                                                                                                                                                                                                          |
 | Testing          | Six tiers: unit (Node, ~100 ms), browser (Vitest browser mode), a11y (axe-core), visual (screenshots), architecture (ArchUnitTS), e2e (playwright-bdd against the production build). See [docs/testing-strategy.md](docs/testing-strategy.md)                                                                                                      |
 | Test quality     | Stryker mutation testing scoped to the unit tier — grades whether the assertions would notice a bug, not whether the lines ran. Runs in ~10 s, own CI job. See [docs/mutation-testing.md](docs/mutation-testing.md)                                                                                                                                |
 | Quality gates    | oxlint + ESLint + Prettier + markdownlint, knip (dead exports), size-limit (bundle budget), husky pre-commit gate (~15 s)                                                                                                                                                                                                                          |
@@ -47,7 +46,7 @@ label — so one run tells you everything that is broken.
 
 ## Stack
 
-Vue 3.5 · TypeScript (strict) · Vite · Tailwind CSS v4 · reka-ui · VueUse · Dexie · vue-router · vue-i18n · zod · Vitest 4 (browser mode) · Playwright · pnpm (with catalogs — pnpm is required)
+Vue 3.5 · TypeScript (strict) · Vite · Tailwind CSS v4 · reka-ui · VueUse · Dexie · Effect v4 · vue-router · vue-i18n · Vitest 4 (browser mode) · Playwright · pnpm (with catalogs — pnpm is required)
 
 ## Philosophy: local-first
 
@@ -81,7 +80,7 @@ These boundaries are not just documentation — they are enforced by [architectu
 
 ## Tracing in development
 
-The instrumentation is already there: every repository operation is wrapped in `Effect.fn('NotesRepo.list')`, the backup programs add `Effect.withSpan`, and every reported failure emits a log record annotated with `boundary` / `operation` / `failure`. What is missing by default is somewhere to send it.
+The instrumentation is already there: every repository operation is wrapped in a named `Effect.fn`, the backup programs add `Effect.withSpan`, and every reported failure emits a log record annotated with `boundary` / `operation` / `failure`. What is missing by default is somewhere to send it.
 
 Start a collector and point the app at it:
 
@@ -91,27 +90,19 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-Open <http://localhost:16686>, pick the `vue-pwa-starter` service, and you get a span per db operation — including the `NotesRepo.create` → `NotesRepo.list` pair that shows a write invalidating `NOTES_KEY` and the read atom re-reading from disk.
+Open <http://localhost:16686>, pick the `vue-pwa-starter` service, and you get a span per db operation — including the create → list pair that shows a write invalidating a reactivity key and the read atom re-reading from disk.
 
 Three things make this cheap enough to ship in a starter:
 
 - The OTLP exporters live in `effect/unstable/observability` and post JSON over `fetch`, so there is no `@opentelemetry/*` SDK to install or bundle.
 - The dev server proxies `/_otlp` to `localhost:4318`, keeping the request same-origin — a stock collector rejects the CORS preflight an OTLP payload would otherwise trigger.
-- `import.meta.env.DEV` is a literal `false` in a production build, so the exporter is dead code. `pnpm size-limit` is what keeps that honest, and telemetry about a user's own notes never has the chance to leave their device.
+- `import.meta.env.DEV` is a literal `false` in a production build, so the exporter is dead code. `pnpm size-limit` is what keeps that honest, and telemetry about a user's own data never has the chance to leave their device.
 
 ## Adding your first feature
 
-Follow the walkthrough in [docs/adding-a-feature.md](docs/adding-a-feature.md). Short version: copy how `src/features/notes` does it, tier by tier.
+Follow the walkthrough in [docs/adding-a-feature.md](docs/adding-a-feature.md), which goes layer by layer and names the test tier each step belongs in.
 
-## Deleting the example
-
-The notes feature is scaffolding. To remove it:
-
-1. Delete `src/features/notes`, `src/views/NotesView.vue`, and the notes specs under `src/__tests__` and `test/e2e`.
-2. Remove the notes entries from `src/router/index.ts`, `src/router/navigation.ts`, and the `notes`/`quickAdd` keys from `src/i18n/messages/*`.
-3. Replace the `notes` table in `src/db/schema.ts` (and `repositories/`, `backup.ts`) with your own.
-4. Remove the `QuickAddNoteSheet` wiring from `src/App.vue` (keep the `#center-action` slot if you want a FAB).
-5. Run `pnpm check` — the gates will point at anything you missed.
+The example feature the walkthrough was written against — a notes screen that touched every layer — has been removed, so `src/features/` is empty and `/` opens Settings. The `docs/` concept files still teach through it; read them for the *rule*, and git history (`git show HEAD~1`) for the code. Each of them is rewritten against the real feature as the slices in [`specs/`](specs/) land.
 
 ## License
 

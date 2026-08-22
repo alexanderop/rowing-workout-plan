@@ -41,7 +41,7 @@ export default defineConfig({
             // headers returns an *opaque* response, which Chrome pads to
             // ~7 MB of quota each — on the same quota IndexedDB draws from.
             // A handful of them can push the origin over and get the user's
-            // notes evicted. Keep the origin check when adding destinations.
+            // data evicted. Keep the origin check when adding destinations.
             urlPattern: ({ request, sameOrigin }) =>
               sameOrigin &&
               (request.destination === 'style' ||

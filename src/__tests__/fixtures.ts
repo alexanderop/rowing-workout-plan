@@ -2,7 +2,6 @@ import { test } from 'vitest'
 import { resetAppState } from './helpers/reset'
 import type { Injection, MountedComposable } from './helpers/withSetup'
 import { withSetup } from './helpers/withSetup'
-import { NotesScreen } from './pages/notesScreen'
 import { SettingsScreen } from './pages/settingsScreen'
 
 /**
@@ -11,14 +10,14 @@ import { SettingsScreen } from './pages/settingsScreen'
  * declare the screen they drive rather than constructing one:
  *
  * ```ts
- * it('creates a note', async ({ notes }) => { … })
+ * it('exports a backup', async ({ settings }) => { … })
  * ```
  *
  * A fixture owns the whole lifecycle — reset the app state, mount, unmount
  * when the test ends — which is what removes the `let screen: … | undefined`
  * plus `beforeEach`/`afterEach` pair every browser spec used to carry. It is
- * also lazy: a test that never names `notes` never mounts it, so a spec file
- * can mix screens without paying for the ones it does not use.
+ * also lazy: a test that never names `settings` never mounts it, so a spec
+ * file can mix screens without paying for the ones it does not use.
  *
  * Written with the builder syntax (`.extend(name, fn)`, Vitest 4.1) rather
  * than the Playwright-compatible object form: the fixture type is inferred
@@ -31,16 +30,10 @@ import { SettingsScreen } from './pages/settingsScreen'
  * `dialogContent.spec.ts`) is a fixture in that spec, extending this one.
  */
 export const it = test
-  .extend('notes', async ({}, { onCleanup }) => {
+  .extend('settings', async ({}, { onCleanup }) => {
     // Mounting is what the fixture is for, so the reset that has to precede
     // it belongs here too — ordering by dependency rather than by hook
     // registration order.
-    await resetAppState()
-    const notes = await NotesScreen.open()
-    onCleanup(() => notes.close())
-    return notes
-  })
-  .extend('settings', async ({}, { onCleanup }) => {
     await resetAppState()
     const settings = await SettingsScreen.open()
     onCleanup(() => settings.close())
@@ -79,7 +72,7 @@ export const it = test
    * about teardown has to be able to say when:
    *
    * ```ts
-   * const { result: age, unmount } = mountComposable(() => useNoteAge(at))
+   * const { result: locale, unmount } = mountComposable(() => useLocale())
    * ```
    *
    * Calling `unmount` is optional and idempotent — the fixture unmounts

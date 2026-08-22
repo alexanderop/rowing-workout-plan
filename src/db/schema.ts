@@ -1,55 +1,28 @@
-import Dexie, { type Table } from 'dexie'
-import type { Types } from 'effect'
-import type { StoredDbNote } from './converters'
+import Dexie from 'dexie'
 
 /**
- * Dexie tables and migrations. The *shape* of a note lives in converters.ts,
- * as a Schema that this file's table typing derives from — a type here and a
- * schema there would be two descriptions of the same row, free to drift.
+ * Dexie tables and migrations.
  *
- * The table is typed `StoredDbNote`, not `DbNote`: rows written by schema v1
- * lack `pinned` and `updatedAt`. The upgrade below backfills live rows, but
- * old JSON backups can re-introduce v1 rows at import time, so every read
- * still goes through the decode-and-normalize path in converters.ts. Keeping
- * the stored type honest about optionality is what makes the compiler enforce
- * that.
+ * The database is empty: the notes worked example was removed and the
+ * training tables (workouts, plan enrolments, benchmarks) land in their own
+ * slice. Version 1 is therefore declared with no object stores — Dexie still
+ * needs a version to open against, and starting the training tables on this
+ * version keeps them a fresh install rather than a migration from a shape
+ * nobody ever shipped.
+ *
+ * The *shape* of a row belongs in `converters.ts` as a Schema this file's
+ * table typing derives from, never as a type declared here: two descriptions
+ * of one row are free to drift. See docs/local-first.md.
  */
-
 class StarterDatabase extends Dexie {
-  notes!: Table<StoredDbNote, string>
-
   constructor() {
     super('vue-pwa-starter')
 
-    // v1: original shape — only id and a createdAt index.
-    this.version(1).stores({
-      notes: 'id, createdAt',
-    })
-
-    // v2: adds `pinned` and `updatedAt`. The upgrade backfills existing rows
-    // so post-upgrade data is complete; the converter guards everything else.
-    // This is the pattern to copy for your own schema changes: bump the
-    // version, migrate forward, and keep reads defensive for data that
-    // bypasses the migration (imports, sync).
-    this.version(2)
-      .stores({
-        notes: 'id, createdAt, updatedAt',
-      })
-      .upgrade(async (tx) => {
-        // Dexie's `modify` edits rows in place, and a schema-derived type is
-        // readonly — this is the one place that writes through it.
-        await tx
-          .table<Types.Mutable<StoredDbNote>>('notes')
-          .toCollection()
-          .modify((note) => {
-            note.pinned ??= false
-            note.updatedAt ??= note.createdAt
-          })
-      })
+    this.version(1).stores({})
   }
 }
 
-export const db = new StarterDatabase()
+const db = new StarterDatabase()
 
 /**
  * Deletes and reopens the database. Used by tests for isolation; also the

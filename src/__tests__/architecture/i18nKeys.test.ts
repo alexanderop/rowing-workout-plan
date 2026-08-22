@@ -8,8 +8,8 @@
  *
  * 1. **Keys nothing uses.** Deleting a control leaves its strings behind, and
  *    every translator pays for them forever. Nothing fails, so nobody notices.
- * 2. **Keys built at runtime.** `t(`notes.age.${unit}`)` compiles whatever
- *    `unit` is, so the typed-key guarantee that makes `t('nav.typo')` a
+ * 2. **Keys built at runtime.** ``t(`plans.kind.${kind}`)`` compiles whatever
+ *    `kind` is, so the typed-key guarantee that makes `t('nav.typo')` a
  *    compile error stops applying exactly where it is easiest to get wrong.
  *
  * Interpolation is not banned — it is the honest way to say "one of these
@@ -32,18 +32,14 @@ const EXCLUDED = ['i18n/messages/', '__tests__/']
  *
  * Both halves are enforced: a call site missing from here fails the dynamic
  * check, and a key listed here that the catalogue does not have fails the
- * next one. Adding a fifth age unit to the template without adding it here
- * therefore shows up as an unused key, which is the point.
+ * next one. Adding a case to the template without adding it here therefore
+ * shows up as an unused key, which is the point.
  */
 const INTERPOLATED = {
   'App.vue': {
     reason:
       'The tab labels come from NAV_ITEMS (router/navigation.ts), which holds the keys as literals — so the usage check below still sees them.',
     keys: [],
-  },
-  'features/notes/components/NoteCard.vue': {
-    reason: "A note's age picks one of the plural-sensitive units at runtime.",
-    keys: ['notes.age.minutes', 'notes.age.hours', 'notes.age.days'],
   },
 } as const satisfies Record<string, { reason: string; keys: ReadonlyArray<string> }>
 

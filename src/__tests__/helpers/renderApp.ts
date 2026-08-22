@@ -8,9 +8,9 @@ import { createAppRouter } from '@/router'
 /**
  * Mounts the full app (shell, router, i18n) the way main.ts does, but with
  * memory history so tests don't fight over the page URL — and with a fresh
- * atom registry per render, so no atom state (notes list, toasts, quick-add
- * sheet) leaks from one test into the next. IndexedDB is the one thing a
- * registry cannot isolate; resetAppState still clears it.
+ * atom registry per render, so no atom state (toasts, and every read atom a
+ * screen subscribes to) leaks from one test into the next. IndexedDB is the
+ * one thing a registry cannot isolate; resetAppState still clears it.
  */
 export async function renderApp(initialPath = '/') {
   const router = createAppRouter(createMemoryHistory())

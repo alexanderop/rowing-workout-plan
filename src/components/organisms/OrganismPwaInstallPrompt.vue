@@ -29,8 +29,8 @@ const { hintVisible, dismissHint } = useInstallPrompt()
 const { needRefresh } = usePwaUpdate()
 
 const dialogOpen = ref(false)
-// Keeps the dialog machinery off the startup path — same trick App.vue uses
-// for the quick-add sheet.
+// Keeps the dialog machinery off the startup path: nothing loads the dialog
+// until someone asks for the instructions.
 const dialogRequested = ref(false)
 
 const bannerVisible = computed(() => hintVisible.value && !needRefresh.value)
