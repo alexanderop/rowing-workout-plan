@@ -8,6 +8,7 @@ export default {
   },
   common: {
     buttons: {
+      cancel: 'Cancel',
       close: 'Close',
       save: 'Save',
     },
@@ -228,6 +229,20 @@ export default {
       importError: 'That file could not be imported',
       invalidBackup: 'That file is not a backup from this app',
       exportError: 'Your data could not be exported',
+      deleteHint: 'This removes everything you have logged. There is no undo.',
+      deleteAll: 'Delete everything',
+      deleteSuccess: 'Everything was deleted',
+      deleteError: 'Your data could not be deleted',
+      // The confirmation names what goes and what stays, because "everything"
+      // is the user's word and the app should be precise about which
+      // everything it means.
+      confirmDelete: {
+        title: 'Delete everything?',
+        description:
+          'Every workout, 2k and plan on this device is removed. There is no copy anywhere else and this cannot be undone — export a backup first if you might want any of it back.',
+        keeps: 'Your appearance and language settings stay as they are.',
+        confirm: 'Yes, delete everything',
+      },
     },
   },
   pwa: {

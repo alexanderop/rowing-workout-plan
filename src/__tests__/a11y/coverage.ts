@@ -29,6 +29,7 @@ export const SWEEPS = {
   log: 'the log',
   logSheet: 'the log-a-row sheet',
   settings: 'settings',
+  deleteDataDialog: 'the delete-everything confirmation',
   toast: 'a toast',
   installBanner: 'the install banner',
   installDialog: 'the install dialog',

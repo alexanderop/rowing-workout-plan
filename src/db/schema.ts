@@ -43,8 +43,11 @@ class TrainerDatabase extends Dexie {
 export const db = new TrainerDatabase()
 
 /**
- * Deletes and reopens the database. Used by tests for isolation; also the
- * seam for a "delete all data" action.
+ * Deletes and reopens the database. Test isolation only — it drops the schema
+ * along with the rows, so anything holding a connection is left reading a
+ * database that no longer exists. "Delete everything" in settings is
+ * `deleteAllData` (`./deleteAll.ts`), which empties the tables instead and is
+ * a program the read atoms can be invalidated by.
  */
 export async function resetDatabase(): Promise<void> {
   await db.delete()

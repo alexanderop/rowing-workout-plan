@@ -53,6 +53,44 @@ export class SettingsScreen extends AppScreen {
     )
   }
 
+  /**
+   * The confirmation in front of "Delete everything". Portalled outside the
+   * screen's subtree, like every dialog in this app, so it is queried from
+   * the page rather than from `container`.
+   */
+  get deleteDialog(): Locator {
+    return page.getByRole('dialog', { name: 'Delete everything?' })
+  }
+
+  /** Opens the confirmation and waits for it to actually be on screen. */
+  async openDeleteDialog(): Promise<void> {
+    await page.getByRole('button', { name: 'Delete everything' }).click()
+    await expect.element(this.deleteDialog).toBeVisible()
+  }
+
+  /**
+   * The whole destructive path: open, confirm, wait for the dialog to go.
+   *
+   * The wait is the point of putting it here — the dialog closes only once
+   * the wipe has landed, so a spec that asserts against IndexedDB straight
+   * after this one is asserting about a finished write rather than racing it.
+   */
+  async deleteEverything(): Promise<void> {
+    await this.openDeleteDialog()
+    await this.deleteDialog.getByRole('button', { name: 'Yes, delete everything' }).click()
+    await this.expectDeleteDialogClosed()
+  }
+
+  /** Backs out of the confirmation the way a user who changed their mind does. */
+  async cancelDelete(): Promise<void> {
+    await this.deleteDialog.getByRole('button', { name: 'Cancel' }).click()
+    await this.expectDeleteDialogClosed()
+  }
+
+  readonly expectDeleteDialogClosed = vi.defineHelper(async (): Promise<void> => {
+    await expect.element(this.deleteDialog).not.toBeInTheDocument()
+  })
+
   /** On screen and laid out — what a sweep over the rendered page needs. */
   readonly expectReady = vi.defineHelper(async (): Promise<void> => {
     await expect.element(this.heading).toBeVisible()

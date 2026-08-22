@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Download, Smartphone, Upload } from '@lucide/vue'
+import { Download, Smartphone, Trash2, Upload } from '@lucide/vue'
 import { Effect } from 'effect'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -8,12 +8,21 @@ import OrganismPwaInstallDialog from '@/components/organisms/OrganismPwaInstallD
 import AtomButton from '@/components/atoms/AtomButton.vue'
 import AtomLabel from '@/components/atoms/AtomLabel.vue'
 import AtomSwitch from '@/components/atoms/AtomSwitch.vue'
+import {
+  MoleculeDialog,
+  MoleculeDialogClose,
+  MoleculeDialogContent,
+  MoleculeDialogDescription,
+  MoleculeDialogFooter,
+  MoleculeDialogHeader,
+  MoleculeDialogTitle,
+} from '@/components/molecules/dialog'
 import { useAtomSet } from '@effect/atom-vue'
 import { useInstallPrompt } from '@/composables/useInstallPrompt'
 import { useLocale } from '@/composables/useLocale'
 import { useReportFailure } from '@/composables/useReportFailure'
 import { useTheme } from '@/composables/useTheme'
-import { dbMutation, exportData, importData, runDb } from '@/db'
+import { dbMutation, deleteAllData, exportData, importData, runDb } from '@/db'
 import type { SupportedLocale } from '@/i18n'
 import { downloadBackup, readBackupFile } from '@/lib/backupFile'
 import { useToastStore } from '@/stores/toast'
@@ -111,6 +120,34 @@ async function handleImportFile(event: Event): Promise<void> {
     ),
   )
 }
+
+const confirmDeleteOpen = ref(false)
+
+/**
+ * Wipes every table. A mutation rather than a `runDb` call, so the read atoms
+ * behind every other screen re-read once it lands — without that, the log and
+ * the plan you were on would still be on screen after the data behind them
+ * was gone.
+ *
+ * The dialog is closed after the program lands rather than on the click: the
+ * confirming button is the one thing on screen that says the delete is
+ * happening, and a dialog that vanishes first would leave a wipe running
+ * behind an ordinary settings page. Closing it on failure too is deliberate —
+ * the toast is what reports the outcome either way, and holding a confirm
+ * dialog open over a failed action reads as "press it again".
+ */
+async function handleDeleteAll(): Promise<void> {
+  await runMutation(
+    deleteAllData.pipe(
+      Effect.tap(() => Effect.sync(() => toast.showToast(t('settings.data.deleteSuccess')))),
+      Effect.catchTag(
+        'Db.DatabaseError',
+        reportFailure('delete all data', t('settings.data.deleteError')),
+      ),
+    ),
+  )
+  confirmDeleteOpen.value = false
+}
 </script>
 
 <template>
@@ -188,9 +225,54 @@ async function handleImportFile(event: Event): Promise<void> {
               @change="handleImportFile"
             />
           </div>
+
+          <!-- Divided off rather than sat beside export and import: the two
+               above hand you a copy of your data, and this one is the only
+               control on the screen that takes something away. -->
+          <div class="flex flex-col gap-3 border-t pt-4">
+            <p class="text-sm text-muted-foreground">{{ t('settings.data.deleteHint') }}</p>
+            <div>
+              <AtomButton variant="destructive" @click="confirmDeleteOpen = true">
+                <Trash2 />
+                {{ t('settings.data.deleteAll') }}
+              </AtomButton>
+            </div>
+          </div>
         </div>
       </section>
     </div>
+
+    <MoleculeDialog v-model:open="confirmDeleteOpen">
+      <MoleculeDialogContent>
+        <MoleculeDialogHeader>
+          <MoleculeDialogTitle>{{ t('settings.data.confirmDelete.title') }}</MoleculeDialogTitle>
+          <MoleculeDialogDescription>
+            {{ t('settings.data.confirmDelete.description') }}
+          </MoleculeDialogDescription>
+        </MoleculeDialogHeader>
+
+        <p class="text-sm text-muted-foreground">{{ t('settings.data.confirmDelete.keeps') }}</p>
+
+        <!-- Cancel first, so the footer's column-reverse puts it at the
+             bottom — under the thumb, with the confirm above it. That is the
+             opposite of the order MoleculeDialogFooter documents, and
+             deliberately: its convention puts the confirming action where the
+             thumb already rests, which is right for a save and wrong for an
+             irreversible wipe. Here the easy target is the way out. -->
+        <MoleculeDialogFooter>
+          <MoleculeDialogClose as-child>
+            <AtomButton variant="outline" class="w-full sm:w-auto">
+              {{ t('common.buttons.cancel') }}
+            </AtomButton>
+          </MoleculeDialogClose>
+          <!-- Not a DialogClose: the dialog closes when the write lands, not
+               when the button is pressed. -->
+          <AtomButton variant="destructive" class="w-full sm:w-auto" @click="handleDeleteAll">
+            {{ t('settings.data.confirmDelete.confirm') }}
+          </AtomButton>
+        </MoleculeDialogFooter>
+      </MoleculeDialogContent>
+    </MoleculeDialog>
 
     <OrganismPwaInstallDialog v-model:open="installDialogOpen" />
   </TemplatePageLayout>

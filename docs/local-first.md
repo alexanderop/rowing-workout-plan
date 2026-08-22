@@ -51,6 +51,14 @@ The same quota is what the runtime caches in `vite.config.ts` draw from. See the
 
 `src/db/backup.ts` exports the whole database as versioned, human-readable JSON and validates imports with zod. The settings screen wires both up. When you add a table, add it to the backup payload in the same commit. A backup that silently misses a table is worse than none.
 
+### Deleting everything
+
+Ownership cuts both ways: if the data is the user's, so is the decision to be rid of it. `src/db/deleteAll.ts` empties every table behind the "Delete everything" control in settings — a confirmation first, and a program that runs through `dbMutation` so every screen re-reads rather than showing rows that are gone. It clears the tables rather than dropping the database, because dropping it takes the schema with it and leaves every open connection reading something that no longer exists (`resetDatabase` still does that, for test isolation only).
+
+A new table has to be added to `deleteAllData` in the same commit too, for the mirror image of the backup reason: a table left out survives a wipe the user asked for. The unit tier asserts the wipe through `exportData`, so the two lists are checked against each other rather than both being trusted.
+
+Preferences — theme, language, the dismissed install hint — are deliberately not touched. They are settings rather than data, and someone deleting their rowing history did not ask to be handed the app in a language they do not read.
+
 ### What is deliberately out of scope
 
 Multi-device sync and CRDTs. The seams for them exist (single db entry point, converters, versioned export), but the starter stays honest: it ships what it tests.

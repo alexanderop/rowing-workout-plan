@@ -115,6 +115,17 @@ describe.each(THEMES)('accessibility, %s theme', (mode) => {
     await assertNoViolations(settings.container)
   })
 
+  it(`${SWEEPS.deleteDataDialog} has no violations`, async ({ settings, theme }) => {
+    await applyTheme(theme)
+    // The one dialog in the app whose whole job is to be read before it is
+    // answered, and the only place a `destructive` button is on screen — so
+    // it is the one place the destructive palette's contrast is graded.
+    await settings.openDeleteDialog()
+
+    // Framed on the dialog: it is portalled outside the screen's subtree.
+    await assertNoViolations(settings.deleteDialog.element())
+  })
+
   it(`${SWEEPS.toast} has no violations`, async ({ settings, theme }) => {
     await applyTheme(theme)
     // A toast is only ever on screen for a moment, which is exactly why it is

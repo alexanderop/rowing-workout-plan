@@ -1,5 +1,14 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`accessibility tree > the delete-everything confirmation names both ways out 1`] = `
+- dialog "Delete everything?":
+  - heading "Delete everything?" [level=2]
+  - paragraph: Every workout, 2k and plan on this device is removed. There is no copy anywhere else and this cannot be undone — export a backup first if you might want any of it back.
+  - paragraph: Your appearance and language settings stay as they are.
+  - button "Cancel"
+  - button "Yes, delete everything"
+`;
+
 exports[`accessibility tree > the install dialog is a labelled dialog with described steps 1`] = `
 - dialog "Install this app":
   - heading "Install this app" [level=2]
