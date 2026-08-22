@@ -130,3 +130,36 @@ Screenshot baselines live in `__screenshots__/` and are platform-specific, since
   - `dependency-diff.yml` and `dependency-diff-comment.yml` report what a lockfile change costs, on the PR that makes it: packages added, install size, and replacement suggestions from e18e's `module-replacements`. `size-limit` guards the bytes that reach a user, but arrives after the dependency is already in. They are split in two so the job holding `pull-requests: write` never has a fork's code checked out beside it. See the comment at the top of each.
 
 The principle: the cost of a check should match how often it runs. Fast checks run on every commit; minutes-long tiers are CI's job.
+
+## The bundle budget
+
+`pnpm size-limit` measures `dist/assets/*.js` brotlied against the limit in
+`package.json`. **200 kB**, with the training feature complete at 188 kB — a
+little over 6% of headroom, which is enough that an ordinary change does not
+trip it and tight enough that a new dependency does.
+
+It was 172 kB for the starter, and raising it was a decision rather than a
+formality: the number exists to catch a regression, so moving it has to be
+deliberate and has to say what it bought. What it bought is slices 1–7 —
+four routes, the training core, the plan catalogue and a schema-validated
+persistence layer.
+
+Where the bytes actually are, brotlied, is worth knowing before anyone tries
+to cut them:
+
+| Chunk                   | Size  | What is in it                                                                                                                     |
+| ----------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `createLucideIcon-*.js` | 63 kB | Mostly `tailwind-merge`'s table of every Tailwind utility, plus lucide's icon factory. Fixed cost: it does not grow with the app. |
+| `db-*.js`               | 42 kB | Effect `Schema` and Dexie — the decode-every-row guarantee, priced.                                                               |
+| `useApi-*.js`           | 27 kB | reka-ui primitives.                                                                                                               |
+| everything else         | 56 kB | The router, the views, i18n, the app shell. Each view is 2–8 kB.                                                                  |
+
+The chunk _names_ are misleading — Vite names a chunk after one of its
+modules, so the biggest one is called `createLucideIcon` and contains no icon
+set at all. Measure before optimising; the obvious suspect here is the wrong
+one.
+
+Nothing dev-only reaches this number. The PM5 capture harness and
+`src/lib/ergBluetooth.ts` sit behind `import.meta.env.DEV`, which Vite
+replaces with a literal `false`, and `grep -rl ce060030 dist/assets/` after a
+build is what keeps that honest.
