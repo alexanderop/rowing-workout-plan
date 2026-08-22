@@ -57,6 +57,21 @@ const routes: Array<RouteRecordRaw> = [
     name: RouteNames.log,
     component: () => import('@/views/LogView.vue'),
   },
+  // The PM5 capture harness. Spread in behind `import.meta.env.DEV`, which
+  // Vite replaces with a literal `false` for a production build — so Rollup
+  // drops the branch, the dynamic import with it, and neither the view nor
+  // the Web Bluetooth modules reach the shipped bundle. `size-limit` is what
+  // notices if that ever stops being true.
+  ...(import.meta.env.DEV
+    ? [
+        {
+          path: '/dev/capture',
+          name: 'dev-capture',
+          component: () => import('@/views/DevCaptureView.vue'),
+          meta: { hideNav: true },
+        } satisfies RouteRecordRaw,
+      ]
+    : []),
   {
     path: '/settings',
     name: RouteNames.settings,

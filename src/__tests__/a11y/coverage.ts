@@ -78,4 +78,7 @@ export const A11Y_COVERAGE = {
  * would grade something other than the shipped UI. Keep this map short; a
  * growing skip list is the finding, not the fix.
  */
-export const A11Y_SKIPPED: Readonly<Record<string, string>> = {}
+export const A11Y_SKIPPED = {
+  'views/DevCaptureView.vue':
+    'The PM5 capture harness. Its route is spread in behind `import.meta.env.DEV`, so Rollup drops it from every production build — verified by grepping dist/ for the service UUID. This tier grades what ships to a user, and nothing here does. Sweep it the day it becomes a screen.',
+} satisfies Readonly<Record<string, string>>

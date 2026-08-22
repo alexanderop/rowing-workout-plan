@@ -32,6 +32,7 @@ There is no `CLAUDE.md` and no `AGENTS.md`. A `SessionStart` hook (`.claude/hook
 | [Touch conventions](touch-conventions.md)               | Anything a finger touches: a new control, the app shell, a safe-area inset, a sheet                                                        |
 | [Effect](effect/index.md)                               | Any Effect work. It is the branch chooser into the per-topic concepts                                                                      |
 | [Writing oxlint rules](oxlint-rules.md)                 | Adding or changing a lint rule in `tools/oxlint/`, or deciding whether a rule is the right enforcement tier at all                         |
+| [Capturing PM5 frames](pm5-capture.md)                  | Recording raw Bluetooth frames off an erg into fixtures — and the secure-context problem that stops it working from a phone                |
 
 Adding a doc means adding a concept file with frontmatter and linking it from this table, so the bundle stays conformant and navigable.
 
