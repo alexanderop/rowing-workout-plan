@@ -41,6 +41,11 @@ const INTERPOLATED = {
       'The tab labels come from NAV_ITEMS (router/navigation.ts), which holds the keys as literals — so the usage check below still sees them.',
     keys: [],
   },
+  'features/training/components/PlanCard.vue': {
+    reason:
+      'A plan carries its own description key (features/training/catalog.ts holds them as literals, and the Plan type makes one mandatory), so a plan cannot ship without a description and the usage check below still sees the keys.',
+    keys: [],
+  },
 } as const satisfies Record<string, { reason: string; keys: ReadonlyArray<string> }>
 
 /**

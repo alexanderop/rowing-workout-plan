@@ -12,9 +12,9 @@
  *
  * - Reads that drive the UI are atoms built on `dbRuntime`; wire them with
  *   `Atom.withReactivity([WORKOUTS_KEY])` (or `TRAINING_KEY`) so writes
- *   refresh them. Those three live in `./atoms.ts` and join this surface with
- *   the first read atom, in slice 5 — every write already invalidates both
- *   keys, so a read added later needs no change here.
+ *   refresh them. The feature owns the atom — `src/features/training/atoms.ts`
+ *   is the worked example — because what a screen reads is the feature's
+ *   business; what it reads it *through* is this surface's.
  * - Writes run through the `dbMutation` fn atom, which invalidates those
  *   keys after the program lands.
  * - `runDb` remains the imperative edge for programs that read and leave
@@ -26,7 +26,7 @@
  * (a spec asserting `toBeInstanceOf`) is inside src/db's own tests and
  * imports `./errors` directly.
  */
-export { dbMutation } from './atoms'
+export { dbMutation, dbRuntime, TRAINING_KEY, WORKOUTS_KEY } from './atoms'
 export { exportData, importData } from './backup'
 export type {
   Benchmark,

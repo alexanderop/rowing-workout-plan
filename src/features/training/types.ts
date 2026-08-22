@@ -74,10 +74,23 @@ export interface PlanWeek {
   readonly sessions: readonly PlanSession[]
 }
 
-/** A catalogue entry. `source` is the attribution the Plans screen prints. */
+/**
+ * A catalogue entry.
+ *
+ * `name` is a proper name and is never translated — "Pete Plan 5k" is what it
+ * is called in every language — while `descriptionKey` is the i18n key for
+ * the sentence a browse card prints under it, and `source` the attribution
+ * that card carries.
+ *
+ * The key travels with the entry rather than being looked up by id in the
+ * component, so a plan added to the catalogue without a description does not
+ * compile. A map on the other side would have let it ship and print the raw
+ * key on screen.
+ */
 export interface Plan {
   readonly id: string
   readonly name: string
+  readonly descriptionKey: string
   readonly source: string
   readonly weeks: readonly PlanWeek[]
 }

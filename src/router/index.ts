@@ -2,6 +2,7 @@ import type { RouteRecordRaw, Router, RouterHistory } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 
 export const RouteNames = {
+  plans: 'plans',
   settings: 'settings',
 } as const
 
@@ -18,10 +19,16 @@ declare module 'vue-router' {
 }
 
 const routes: Array<RouteRecordRaw> = [
-  // Settings is the only screen there is, so it is also the home screen. The
-  // redirect rather than a second record: one route name means the tab bar
-  // still marks it current when the app opens on `/`.
-  { path: '/', redirect: { name: RouteNames.settings } },
+  // Plans is where the app opens: it is the screen that tells you what to row
+  // next, and the one that asks for the 2k everything else is derived from.
+  // The redirect rather than a second record: one route name means the tab
+  // bar still marks it current when the app opens on `/`.
+  { path: '/', redirect: { name: RouteNames.plans } },
+  {
+    path: '/plans',
+    name: RouteNames.plans,
+    component: () => import('@/views/PlansView.vue'),
+  },
   {
     path: '/settings',
     name: RouteNames.settings,

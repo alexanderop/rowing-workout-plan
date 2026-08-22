@@ -1,14 +1,14 @@
 ---
 type: Playbook
 title: Adding a feature
-description: Build order for a new feature, mapped onto the notes worked example, with the test home for every step.
+description: Build order for a new feature, mapped onto the training feature, with the test home for every step.
 tags: [features, walkthrough, testing]
 status: stable
 ---
 
 # Adding a feature
 
-The notes feature (`src/features/notes`) is the worked example, and this walkthrough maps its pieces so you can copy the pattern. Build in this order; every step has a test home.
+The training feature (`src/features/training`) is the worked example, and this walkthrough maps its pieces so you can copy the pattern. Build in this order; every step has a test home.
 
 ## 1. Storage (if the feature persists data)
 
@@ -21,15 +21,15 @@ The notes feature (`src/features/notes`) is the worked example, and this walkthr
 
 ## 2. Domain logic
 
-Pure functions in `src/features/<name>/domain.ts` (sorting, deriving, validating). Keeping them out of components is what makes them unit-tier testable. `src/features/notes/domain.ts` and its spec in `src/__tests__/unit/notes/` are the template.
+Pure functions in `src/features/<name>/` (deriving, validating, converting). Keeping them out of components is what makes them unit-tier testable, and every module here has to be listed in `CORE` (`eslint.config.ts`) with a spec under `src/__tests__/unit/<feature>/` — the arch tier fails a core module that has neither. `features/training/progress.ts` and its spec are the smallest complete example: rows in, one answer out, and every assertion about the case where the rows disagree.
 
 ## 3. State
 
-Atoms via `@effect/atom-vue`, with `src/features/notes/atoms.ts` as the template. Conventions:
+Atoms via `@effect/atom-vue`, with `src/features/training/atoms.ts` as the template. Conventions:
 
-- **Reads are atoms.** Build them with `dbRuntime.atom(program)` and wire them with `Atom.withReactivity([NOTES_KEY])` (add a key per table). The atom's value is an `AsyncResult` carrying loading, failure, and data in one value, and components subscribe with `useAtomValue(() => yourAtom)`. Subscribing _is_ the load; there is no `onMounted` fetch and no `isLoaded` flag.
+- **Reads are atoms.** Build them with `dbRuntime.atom(program)` and wire them with `Atom.withReactivity([TRAINING_KEY])` — the keys are grouped by how often a thing changes, not one per table. The atom's value is an `AsyncResult` carrying loading, failure, and data in one value, and components subscribe with `useAtomValue(() => yourAtom)`. Subscribing _is_ the load; there is no `onMounted` fetch and no `isLoaded` flag. A screen that needs several combines them with `AsyncResult.all`, which reports the first failure and waits for the rest — one loading state, one error state.
 - **Writes go through `dbMutation`** (from `@/db`), which only accepts `Effect<unknown, never, DbServices>`. The component composes the repository program with `Effect.catchTag`/`Effect.catchTags` first, then hands it to the setter from `useAtomSet(() => dbMutation, { mode: 'promise' })`. When the write lands, the reactivity key is invalidated and every read atom re-reads, so state always mirrors disk with no store method remembering to re-read.
-- Plain UI state (a sheet's open flag, toasts) is a writable `Atom.make(...)` behind a small composable. `src/stores/quickAdd.ts` and `src/stores/toast.ts` are the pattern, including the writable `computed` for anything a component two-way binds.
+- Plain UI state (a sheet's open flag, toasts) is a writable `Atom.make(...)` behind a small composable. `src/stores/toast.ts` is the pattern, including the writable `computed` for anything a component two-way binds. An immutable module constant is _not_ an atom — the plan catalogue has no async, no failure and nothing to invalidate, so wrapping it buys indirection and no capability.
 - No `$reset()` needed: atom state lives in the registry, and browser tests get a fresh registry per render (see `src/__tests__/helpers/renderApp.ts`).
 - Why not Pinia? Nothing here needs devtools time-travel or plugins, and the registry-scoped atoms give the piece Pinia never had: reads that Effect programs can invalidate, with failures typed all the way into the template.
 
@@ -39,22 +39,22 @@ Atoms via `@effect/atom-vue`, with `src/features/notes/atoms.ts` as the template
 - Route-level page in `src/views/`, registered in `src/router/index.ts`.
 - New tab? Add one entry to `src/router/navigation.ts` and the shell handles the rest. Full-screen route? `meta: { hideNav: true }`.
 - Every user-facing string goes through i18n, in `src/i18n/messages/en.ts` **and** `de.ts`. The `MessageSchema` type makes a missing key a compile error.
-- Give destructive or ambiguous icon buttons an `aria-label` that includes the item name (see `NoteCard.vue`). The a11y tier will catch bare icon buttons.
+- Give destructive or ambiguous icon buttons an `aria-label` that includes the item name (see `PlanCard.vue`, whose whole card is the control). The a11y tier will catch bare icon buttons, and `a11y/coverage.ts` will fail the arch tier until the new component names the sweep that renders it.
 
 ## 5. Tests, tier by tier
 
-For a feature the size of notes, the full set is roughly:
+For a feature the size of training, the full set is roughly:
 
 | Tier    | What to cover                                                                                                 |
 | ------- | ------------------------------------------------------------------------------------------------------------- |
 | unit    | domain functions, converters                                                                                  |
-| default | the main user flow through the real UI (`notesFlow.spec.ts` pattern: interact, assert UI, assert persistence) |
+| default | the main user flow through the real UI (`plansFlow.spec.ts` pattern: interact, assert UI, assert persistence) |
 | a11y    | one axe sweep of the new screen; one of any new dialog                                                        |
 | visual  | a screenshot if the screen is part of the shell's core look (`pnpm test:visual:update`)                       |
 | arch    | nothing to write; the generic rules pick up new features automatically                                        |
 | e2e     | only if the feature carries a load-bearing journey, like persistence across reload                            |
 
-Anything that drives the new screen goes through a page object first: a class in `src/__tests__/pages/` for the browser tiers, and one in `test/e2e/pages/` if the feature reaches e2e. `NotesScreen` and `NotesPage` are the templates; the rules are in [testing-strategy.md](testing-strategy.md).
+Anything that drives the new screen goes through a page object first: a class in `src/__tests__/pages/` for the browser tiers, and one in `test/e2e/pages/` if the feature reaches e2e. `PlansScreen` is the template, with `BenchmarkSheet` as the nested part; the rules are in [testing-strategy.md](testing-strategy.md). A screen whose contents depend on what is in the database gets a _factory_ fixture rather than a mounted one — read atoms load on subscribe, so seeding has to happen before the mount, and `plans({ benchmark2kMs, planId })` in `fixtures.ts` is what makes that order impossible to get wrong.
 
 ## 6. Ship
 

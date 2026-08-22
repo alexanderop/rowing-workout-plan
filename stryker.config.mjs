@@ -32,6 +32,7 @@ export default {
     'src/features/*/catalog.ts',
     'src/features/*/domain.ts',
     'src/features/*/pace.ts',
+    'src/features/*/progress.ts',
     'src/features/*/schedule.ts',
     'src/features/*/targets.ts',
     'src/features/*/types.ts',

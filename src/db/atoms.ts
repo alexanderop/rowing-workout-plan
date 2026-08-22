@@ -9,13 +9,12 @@ import { dbLayer, type DbServices } from './layer'
  * lazily per registry and torn down with it, which is how browser tests get a
  * fresh db runtime by providing a fresh registry.
  *
- * Not exported yet, and neither are the keys below: a read atom is what
- * imports them (`dbRuntime.atom(program)` wired with
- * `Atom.withReactivity([WORKOUTS_KEY])`), and the first of those arrives with
- * the screens in slice 5. The write half is wired here and now, so a read
- * added later refreshes without anyone having to remember to invalidate.
+ * Exported through `./index.ts` for the feature atoms to build reads on
+ * (`dbRuntime.atom(program)` wired with `Atom.withReactivity([TRAINING_KEY])`).
+ * The write half below was wired before there was a single read, which is why
+ * nothing had to be remembered when the first one arrived.
  */
-const dbRuntime = Atom.runtime(dbLayer)
+export const dbRuntime = Atom.runtime(dbLayer)
 
 /**
  * Reactivity keys — the names a write invalidates and a read atom subscribes
@@ -24,8 +23,8 @@ const dbRuntime = Atom.runtime(dbLayer)
  * and the 2k you are paced from change a handful of times a year. Giving them
  * one key would re-read the whole log every time somebody enrolled.
  */
-const WORKOUTS_KEY = 'workouts'
-const TRAINING_KEY = 'training'
+export const WORKOUTS_KEY = 'workouts'
+export const TRAINING_KEY = 'training'
 
 /**
  * The write edge of the db: a fn atom that executes a mutation program.

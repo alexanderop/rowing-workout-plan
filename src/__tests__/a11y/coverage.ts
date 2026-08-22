@@ -20,6 +20,9 @@
  * The values are noun phrases: the spec appends "has no violations".
  */
 export const SWEEPS = {
+  plans: 'plans',
+  plansWithoutBenchmark: 'plans before a 2k is set',
+  benchmarkSheet: 'the benchmark sheet',
   settings: 'settings',
   toast: 'a toast',
   installBanner: 'the install banner',
@@ -39,6 +42,10 @@ export type SweepId = keyof typeof SWEEPS
  */
 export const A11Y_COVERAGE = {
   'App.vue': 'settings',
+  'features/training/components/ActivePlanCard.vue': 'plans',
+  'features/training/components/PlanCard.vue': 'plans',
+  'features/training/components/BenchmarkSheet.vue': 'benchmarkSheet',
+  'views/PlansView.vue': 'plans',
   'components/organisms/OrganismAppShell.vue': 'settings',
   'components/molecules/MoleculePageHeader.vue': 'settings',
   'components/templates/TemplatePageLayout.vue': 'settings',

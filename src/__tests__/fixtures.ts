@@ -2,7 +2,10 @@ import { test } from 'vitest'
 import { resetAppState } from './helpers/reset'
 import type { Injection, MountedComposable } from './helpers/withSetup'
 import { withSetup } from './helpers/withSetup'
+import { PlansScreen } from './pages/plansScreen'
 import { SettingsScreen } from './pages/settingsScreen'
+import type { TrainingSeed } from './helpers/seed'
+import { seedTraining } from './helpers/seed'
 
 /**
  * The browser tiers' `it`, with the screen objects handed over as fixtures —
@@ -38,6 +41,37 @@ export const it = test
     const settings = await SettingsScreen.open()
     onCleanup(() => settings.close())
     return settings
+  })
+  /**
+   * The plans screen, as a function rather than a mounted screen.
+   *
+   * Every other screen fixture hands over something already on screen. This
+   * one cannot: what the plans screen renders depends entirely on what is in
+   * the database when it mounts — no 2k and it is a single prompt for one —
+   * and a read atom loads on subscribe, so a row written after the mount is
+   * not seen. Calling it is therefore the seed *and* the mount, in that order,
+   * which is the only order that works:
+   *
+   * ```ts
+   * const screen = await plans({ benchmark2kMs: 424_200, planId: 'pete5k' })
+   * ```
+   *
+   * Called with nothing, it is the onboarding state. Called twice, both
+   * screens are unmounted at the end — innermost first, like `mountComposable`.
+   */
+  .extend('plans', async ({}, { onCleanup }) => {
+    const opened: Array<PlansScreen> = []
+    onCleanup(() => {
+      for (const screen of opened.reverse()) screen.close()
+    })
+
+    return async (seed: TrainingSeed = {}): Promise<PlansScreen> => {
+      await resetAppState()
+      await seedTraining(seed)
+      const screen = await PlansScreen.open()
+      opened.push(screen)
+      return screen
+    }
   })
   /**
    * Dark mode as a fixture, so the visual tier can switch appearance without

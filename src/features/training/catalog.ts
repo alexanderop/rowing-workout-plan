@@ -162,6 +162,7 @@ function liteWeek(slot: number): readonly SessionBody[] {
 function buildPlan(
   id: string,
   name: string,
+  descriptionKey: string,
   source: string,
   weekBody: (slot: number, isFinalWeek: boolean) => readonly SessionBody[],
 ): Plan {
@@ -180,13 +181,14 @@ function buildPlan(
     })
   }
 
-  return { id, name, source, weeks }
+  return { id, name, descriptionKey, source, weeks }
 }
 
 /** Twelve weeks, 71 sessions, tapering into a 5k test. */
 export const pete5k: Plan = buildPlan(
   'pete5k',
   'Pete Plan 5k',
+  'plans.catalog.pete5k.description',
   'thepeteplan.com',
   (slot, isFinalWeek) => fullWeek(slot, isFinalWeek),
 )
@@ -197,6 +199,7 @@ export const pete5k: Plan = buildPlan(
 export const pete5kLite: Plan = buildPlan(
   'pete5k-lite',
   'Pete Plan 5k — Lite',
+  'plans.catalog.pete5kLite.description',
   'thepeteplan.com',
   (slot) => liteWeek(slot),
 )

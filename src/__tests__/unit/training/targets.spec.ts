@@ -5,7 +5,7 @@ import { FastCheck } from 'effect/testing'
 import { pete5k } from '@/features/training/catalog'
 import { formatSplit } from '@/features/training/pace'
 import type { Rotation } from '@/features/training/schedule'
-import { targetFor, TARGET_OFFSETS_MS } from '@/features/training/targets'
+import { benchmarkPace, targetFor, TARGET_OFFSETS_MS } from '@/features/training/targets'
 import type { PlanSession, SessionKind } from '@/features/training/types'
 
 /**
@@ -214,6 +214,34 @@ describe('stroke rates', () => {
     expect(rateOf('steady').high).toBeLessThanOrEqual(25)
     for (const kind of ['longRest', 'pacedTwoK'] as const)
       expect(rateOf(kind).low, kind).toBeGreaterThan(rateOf('steady').high)
+  })
+})
+
+describe('benchmarkPace', () => {
+  it('is the 500 m split of the canvas 2k, to the tenth a rower reads', () => {
+    // 7:04.2 over 2,000 m is 1:46.05 per 500 m, which formats as 1:46.0 —
+    // the figure the design canvas prints for this benchmark.
+    expect(succeeded(benchmarkPace(BENCHMARK_2K_MS))).toBeCloseTo(106_050, 6)
+    expect(succeeded(formatSplit(succeeded(benchmarkPace(BENCHMARK_2K_MS))))).toBe('1:46.0')
+  })
+
+  it('is the same 2k pace every target is built on', () => {
+    // Not a restatement: this is what makes the sheet's live echo the number
+    // the plan will actually be paced from, rather than a second calculation
+    // that can drift from it.
+    const steady = succeeded(targetFor(session('steady'), BENCHMARK_2K_MS, 1))
+
+    expect(steady.splitMs).toBeCloseTo(
+      succeeded(benchmarkPace(BENCHMARK_2K_MS)) + TARGET_OFFSETS_MS.steady,
+      6,
+    )
+  })
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])('refuses a 2k of %p', (benchmark) => {
+    expect(failed(benchmarkPace(benchmark))).toMatchObject({
+      _tag: 'Training.PaceRangeError',
+      field: 'durationMs',
+    })
   })
 })
 

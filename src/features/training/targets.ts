@@ -192,6 +192,19 @@ function pacedTwoKReps(
 }
 
 /**
+ * The 500 m split a 2k time works out to.
+ *
+ * The one number the benchmark sheet echoes back while you type, so "7:04.2"
+ * is confirmed as the pace it means *before* it is saved rather than by every
+ * target on the next screen being wrong. It is `splitFor` with the distance
+ * filled in — the point is that no caller outside this module has to know
+ * which distance the benchmark is over.
+ */
+export function benchmarkPace(benchmark2kMs: number): Result.Result<number, PaceRangeError> {
+  return splitFor(BENCHMARK_DISTANCE_M, benchmark2kMs)
+}
+
+/**
  * The target for one session of one plan, for a rower with this 2k.
  *
  * `rotation` comes from `schedule.rotationFor`, so the caller has already been

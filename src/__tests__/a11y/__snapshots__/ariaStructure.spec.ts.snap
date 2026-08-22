@@ -11,5 +11,6 @@ exports[`accessibility tree > the install dialog is a labelled dialog with descr
 
 exports[`accessibility tree > the tab bar names every destination 1`] = `
 - navigation "Main navigation":
+  - button "Plans"
   - button "Settings"
 `;

@@ -24,6 +24,40 @@ describe.each(THEMES)('accessibility, %s theme', (mode) => {
     if (mode === 'dark') await theme.dark()
   }
 
+  /** The canvas's worked example, so the sweep grades real numbers. */
+  const BENCHMARK_2K_MS = 424_200
+
+  it(`${SWEEPS.plansWithoutBenchmark} has no violations`, async ({ plans, theme }) => {
+    await applyTheme(theme)
+    // The first screen a new user sees, and the only one with nothing on it
+    // but a prompt — so it is the one most likely to be a heading with no
+    // section around it.
+    const screen = await plans()
+    await screen.expectAsksForBenchmark()
+
+    await assertNoViolations(screen.container)
+  })
+
+  it(`${SWEEPS.plans} has no violations`, async ({ plans, theme }) => {
+    await applyTheme(theme)
+    const screen = await plans({ benchmark2kMs: BENCHMARK_2K_MS, planId: 'pete5k' })
+    await screen.expectReady()
+
+    await assertNoViolations(screen.container)
+  })
+
+  it(`${SWEEPS.benchmarkSheet} has no violations`, async ({ plans, theme }) => {
+    await applyTheme(theme)
+    // Opened from the empty state rather than from the footer row: it is the
+    // path a first-time user takes, and the one where the sheet is the only
+    // thing on screen.
+    const screen = await plans()
+    await screen.enterBenchmark()
+
+    // Framed on the dialog: it is portalled outside the screen's subtree.
+    await assertNoViolations(screen.benchmark.dialog.element())
+  })
+
   it(`${SWEEPS.settings} has no violations`, async ({ settings, theme }) => {
     await applyTheme(theme)
     await settings.expectReady()
@@ -74,5 +108,12 @@ describe.each(THEMES)('accessibility, %s theme', (mode) => {
 describe('page structure', () => {
   it('settings has a sound page structure', async ({ settings }) => {
     await assertNoPageLevelViolations(settings)
+  })
+
+  it('plans has a sound page structure', async ({ plans }) => {
+    const screen = await plans({ benchmark2kMs: 424_200, planId: 'pete5k' })
+    await screen.expectReady()
+
+    await assertNoPageLevelViolations(screen)
   })
 })

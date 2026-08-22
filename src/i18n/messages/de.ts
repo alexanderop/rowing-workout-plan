@@ -3,14 +3,68 @@ import type { MessageSchema } from '../types'
 const de: MessageSchema = {
   nav: {
     ariaLabel: 'Hauptnavigation',
+    plans: 'Pläne',
     settings: 'Einstellungen',
   },
   common: {
     buttons: {
       close: 'Schließen',
+      save: 'Speichern',
     },
     aria: {
       goBack: 'Zurück',
+    },
+  },
+  plans: {
+    title: 'Pläne',
+    subtitle: 'Strukturierte Ergo-Programme, an deiner 2k-Zeit ausgerichtet',
+    loadError: 'Deine Pläne konnten nicht geladen werden',
+    weeks: '{count} Wochen',
+    perWeek: '{count} / Woche',
+    active: {
+      heading: 'Aktiver Plan',
+      progress: 'Woche {week} von {weeks} · {done} von {total} Einheiten erledigt',
+      progressLabel: 'Erledigte Einheiten',
+    },
+    browse: {
+      heading: 'Auswählen',
+      start: '{name} starten',
+    },
+    none: {
+      title: 'Noch kein Plan',
+      body: 'Wähle unten einen aus. Ein Wechsel behält alles, was du schon gerudert hast.',
+    },
+    source: 'Die Einheiten sind von den auf {sources} veröffentlichten Trainingsplänen abgeleitet.',
+    catalog: {
+      pete5k: {
+        description: 'Zwölf Wochen aus Drei-Wochen-Zyklen, die in einen 5k-Test auslaufen.',
+      },
+      pete5kLite: {
+        description: 'Dieselben Drei-Wochen-Zyklen mit drei Einheiten pro Woche.',
+      },
+    },
+    toast: {
+      enrolled: 'Du bist auf {name}',
+      enrolFailed: 'Dieser Plan konnte nicht gestartet werden',
+    },
+  },
+  benchmark: {
+    heading: 'Deine 2k-Zeit',
+    description: 'Deine aktuellste Zeit über 2.000 m. Jedes Ziel im Plan wird daraus abgeleitet.',
+    label: '2k-Zeit',
+    placeholder: '7:04.2',
+    pace: 'Das sind {split} pro 500 m.',
+    invalid: 'Gib eine Zeit wie 7:04.2 ein',
+    current: 'Ausgerichtet an deiner 2k-Zeit von {time}',
+    change: 'Ändern',
+    empty: {
+      title: 'Beginne mit einer 2k-Zeit',
+      body: 'Jedes Ziel in jedem Plan wird daraus berechnet — ohne sie gibt es nichts zu zeigen.',
+      action: '2k-Zeit eingeben',
+    },
+    toast: {
+      saved: 'Bestzeit gespeichert',
+      saveFailed: 'Deine 2k-Zeit konnte nicht gespeichert werden',
     },
   },
   settings: {

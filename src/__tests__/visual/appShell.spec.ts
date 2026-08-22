@@ -23,6 +23,24 @@ describe('visual regression', () => {
   })
 
   /**
+   * The home screen, and the one baseline that is about a *screen* rather than
+   * the shell around it: cards, badges and a progress bar are geometry the
+   * other two frames do not contain, and a card that loses its padding is
+   * invisible to every other tier.
+   *
+   * Light only, deliberately. The two frames above run in both themes because
+   * what they grade is partly colour; what this grades is layout, which does
+   * not change with the palette — and the a11y tier already sweeps this screen
+   * in both themes for contrast.
+   */
+  it('plans, light', async ({ plans }) => {
+    const screen = await plans({ benchmark2kMs: 424_200, planId: 'pete5k' })
+    await screen.expectReady()
+
+    await expect(screen.root).toMatchScreenshot('plans-light')
+  })
+
+  /**
    * A dialog has its own baseline because it had none, and that is exactly
    * how every bottom sheet in the app shipped with zero bottom padding: the
    * two baselines above are a screen with nothing open over it, so a visually

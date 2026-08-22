@@ -31,7 +31,13 @@ const firstIds = (plan: Plan, count: number): Array<string> =>
 
 const allIds = (plan: Plan): Array<string> => firstIds(plan, Number.MAX_SAFE_INTEGER)
 
-const EMPTY_PLAN: Plan = { id: 'empty', name: 'Empty', source: 'test', weeks: [] }
+const EMPTY_PLAN: Plan = {
+  id: 'empty',
+  name: 'Empty',
+  descriptionKey: 'plans.catalog.pete5k.description',
+  source: 'test',
+  weeks: [],
+}
 
 describe('positionFor', () => {
   it('starts at week 1, session 1 with nothing done', () => {

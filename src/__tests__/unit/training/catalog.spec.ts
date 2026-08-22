@@ -227,6 +227,16 @@ describe('PLANS', () => {
     expect(new Set(PLANS.map((plan) => plan.id)).size).toBe(PLANS.length)
   })
 
+  it('gives every plan a description key the catalogue can be read from', () => {
+    // The keys are named here as literals as well as in catalog.ts, which is
+    // what the i18n arch test looks for — and what makes a renamed message
+    // fail a test rather than render its own key on the Plans screen.
+    expect(PLANS.map((plan) => plan.descriptionKey)).toEqual([
+      'plans.catalog.pete5k.description',
+      'plans.catalog.pete5kLite.description',
+    ])
+  })
+
   it('never repeats a session id across plans', () => {
     const ids = PLANS.flatMap((plan) => sessionsOf(plan).map((session) => session.id))
     expect(new Set(ids).size).toBe(ids.length)

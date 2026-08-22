@@ -109,6 +109,25 @@ describe('touch targets', () => {
     expect(undersized, report(undersized)).toEqual([])
   })
 
+  it('clears the floor on the plans screen', async ({ plans }) => {
+    // The card-heavy screen: a browse card is a button whose geometry is
+    // overridden rather than the primitive's own, which is exactly the case a
+    // desktop review passes and a thumb does not.
+    const screen = await plans({ benchmark2kMs: 424_200, planId: 'pete5k' })
+    await screen.expectReady()
+
+    const undersized = undersizedControls(document.body)
+    expect(undersized, report(undersized)).toEqual([])
+  })
+
+  it('clears the floor in the benchmark sheet', async ({ plans }) => {
+    const screen = await plans()
+    await screen.enterBenchmark()
+
+    const undersized = undersizedControls(document.body)
+    expect(undersized, report(undersized)).toEqual([])
+  })
+
   it('clears the floor in a dialog', async ({ settings }) => {
     stubInstallPromptAvailable()
     await settings.install.expectVisible()
