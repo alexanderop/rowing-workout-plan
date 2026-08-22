@@ -30,6 +30,7 @@ export default {
     'src/db/converters.ts',
     'src/db/backup.ts',
     'src/features/*/domain.ts',
+    'src/features/*/pace.ts',
     'src/lib/backupFile.ts',
     'src/lib/installPlatform.ts',
   ],

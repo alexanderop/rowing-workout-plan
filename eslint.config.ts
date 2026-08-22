@@ -242,7 +242,12 @@ const NO_APP_STATE = {
  */
 
 /** Pure decisions. No clock, no platform, no reactivity — and no cap on how hard they think. */
-export const CORE = ['src/features/*/domain.ts', 'src/lib/installPlatform.ts', 'src/lib/utils.ts']
+export const CORE = [
+  'src/features/*/domain.ts',
+  'src/features/*/pace.ts',
+  'src/lib/installPlatform.ts',
+  'src/lib/utils.ts',
+]
 
 /**
  * The outermost shell: modules whose entire job is to talk to a browser API
