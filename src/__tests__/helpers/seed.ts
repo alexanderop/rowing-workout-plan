@@ -1,4 +1,5 @@
 import { Effect } from 'effect'
+import type { WorkoutDraft } from '@/db'
 import { enrolInPlan, logWorkout, recordBenchmark, runDb } from '@/db'
 
 /**
@@ -21,6 +22,11 @@ export interface TrainingSeed {
   readonly planId?: string
   /** Plan session ids to log a workout against — what makes a session "done". */
   readonly completed?: ReadonlyArray<string>
+  /**
+   * Whole workouts, for the screens that show what was rowed rather than
+   * only that it was. Anything left out falls back to {@link WORKOUT}.
+   */
+  readonly workouts?: ReadonlyArray<Partial<WorkoutDraft>>
 }
 
 /**
@@ -44,6 +50,8 @@ export function seedTraining(seed: TrainingSeed): Promise<void> {
 
       for (const planSessionId of seed.completed ?? [])
         yield* logWorkout({ ...WORKOUT, planSessionId })
+
+      for (const workout of seed.workouts ?? []) yield* logWorkout({ ...WORKOUT, ...workout })
       // A rejected seed is a broken test, not a case under test — `orDie`
       // turns it into a defect that fails loudly here rather than a screen
       // quietly rendering an empty plan three assertions later.

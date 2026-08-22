@@ -3,6 +3,7 @@ import type { Locator } from 'vitest/browser'
 import { page } from 'vitest/browser'
 import { renderApp } from '../helpers/renderApp'
 import { AppScreen } from './appScreen'
+import { LogWorkoutSheet } from './logWorkoutSheet'
 
 /** One session (`SessionView.vue`): its targets, its pieces, its coaching note. */
 export class SessionScreen extends AppScreen {
@@ -21,6 +22,15 @@ export class SessionScreen extends AppScreen {
    */
   static within(app: AppScreen): SessionScreen {
     return new SessionScreen(app.container, () => undefined)
+  }
+
+  /** The sheet this screen opens to write the session into the log. */
+  readonly sheet = new LogWorkoutSheet()
+
+  /** Log this session — the write that advances the plan. */
+  async logSession(): Promise<void> {
+    await page.getByRole('button', { name: 'Log this session' }).click()
+    await this.sheet.expectOpen('Log this session')
   }
 
   /** The route's own h1 — the session written out, e.g. "6 × 1k / 1′ rest". */

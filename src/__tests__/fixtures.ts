@@ -2,9 +2,11 @@ import { test } from 'vitest'
 import { resetAppState } from './helpers/reset'
 import type { Injection, MountedComposable } from './helpers/withSetup'
 import { withSetup } from './helpers/withSetup'
+import { LogScreen } from './pages/logScreen'
 import { PlansScreen } from './pages/plansScreen'
 import { PlanWeekScreen } from './pages/planWeekScreen'
 import { SessionScreen } from './pages/sessionScreen'
+import { TodayScreen } from './pages/todayScreen'
 import { SettingsScreen } from './pages/settingsScreen'
 import type { TrainingSeed } from './helpers/seed'
 import { seedTraining } from './helpers/seed'
@@ -108,6 +110,36 @@ export const it = test
       await resetAppState()
       await seedTraining(seed)
       const screen = await SessionScreen.open(sessionId)
+      opened.push(screen)
+      return screen
+    }
+  })
+  /** The home screen, seeded then mounted — same order, same reason. */
+  .extend('today', async ({}, { onCleanup }) => {
+    const opened: Array<TodayScreen> = []
+    onCleanup(() => {
+      for (const screen of opened.reverse()) screen.close()
+    })
+
+    return async (seed: TrainingSeed = {}) => {
+      await resetAppState()
+      await seedTraining(seed)
+      const screen = await TodayScreen.open()
+      opened.push(screen)
+      return screen
+    }
+  })
+  /** The log. Seeded with workouts, which is the only thing on it. */
+  .extend('log', async ({}, { onCleanup }) => {
+    const opened: Array<LogScreen> = []
+    onCleanup(() => {
+      for (const screen of opened.reverse()) screen.close()
+    })
+
+    return async (seed: TrainingSeed = {}) => {
+      await resetAppState()
+      await seedTraining(seed)
+      const screen = await LogScreen.open()
       opened.push(screen)
       return screen
     }

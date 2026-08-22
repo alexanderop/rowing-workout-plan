@@ -58,6 +58,37 @@ describe.each(THEMES)('accessibility, %s theme', (mode) => {
     await assertNoViolations(screen.benchmark.dialog.element())
   })
 
+  it(`${SWEEPS.today} has no violations`, async ({ today, theme }) => {
+    await applyTheme(theme)
+    const screen = await today({ benchmark2kMs: BENCHMARK_2K_MS, planId: 'pete5k' })
+    await screen.expectReady()
+
+    await assertNoViolations(screen.container)
+  })
+
+  it(`${SWEEPS.log} has no violations`, async ({ log, theme }) => {
+    await applyTheme(theme)
+    // One planned row and one free one, so both branches of the row's title
+    // are on screen — and the filter chips, which carry `aria-pressed`.
+    const screen = await log({
+      benchmark2kMs: BENCHMARK_2K_MS,
+      planId: 'pete5k',
+      workouts: [{ planSessionId: 'pete5k-w1-s2', distanceM: 4000 }, { distanceM: 10_000 }],
+    })
+    await screen.expectReady()
+
+    await assertNoViolations(screen.container)
+  })
+
+  it(`${SWEEPS.logSheet} has no violations`, async ({ log, theme }) => {
+    await applyTheme(theme)
+    const screen = await log()
+    await screen.logRow()
+
+    // Framed on the dialog: it is portalled outside the screen's subtree.
+    await assertNoViolations(screen.sheet.anyDialog.element())
+  })
+
   it(`${SWEEPS.planWeek} has no violations`, async ({ planWeek, theme }) => {
     await applyTheme(theme)
     // Week 3 of the full plan: six rows, a twelve-chip strip and a rotation
@@ -127,6 +158,20 @@ describe.each(THEMES)('accessibility, %s theme', (mode) => {
 describe('page structure', () => {
   it('settings has a sound page structure', async ({ settings }) => {
     await assertNoPageLevelViolations(settings)
+  })
+
+  it('today has a sound page structure', async ({ today }) => {
+    const screen = await today({ benchmark2kMs: 424_200, planId: 'pete5k' })
+    await screen.expectReady()
+
+    await assertNoPageLevelViolations(screen)
+  })
+
+  it('the log has a sound page structure', async ({ log }) => {
+    const screen = await log({ workouts: [{ distanceM: 10_000 }] })
+    await screen.expectReady()
+
+    await assertNoPageLevelViolations(screen)
   })
 
   it('a plan week has a sound page structure', async ({ planWeek }) => {

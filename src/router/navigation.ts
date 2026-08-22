@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { ClipboardList, Settings } from '@lucide/vue'
+import { CalendarCheck, ClipboardList, Settings, ScrollText } from '@lucide/vue'
 import type { RouteName } from './index'
 import { RouteNames } from './index'
 
@@ -15,6 +15,8 @@ export type NavItemConfig = {
 }
 
 export const NAV_ITEMS: ReadonlyArray<NavItemConfig> = [
+  { routeName: RouteNames.today, icon: CalendarCheck, labelKey: 'nav.today' },
   { routeName: RouteNames.plans, icon: ClipboardList, labelKey: 'nav.plans' },
+  { routeName: RouteNames.log, icon: ScrollText, labelKey: 'nav.log' },
   { routeName: RouteNames.settings, icon: Settings, labelKey: 'nav.settings' },
 ]

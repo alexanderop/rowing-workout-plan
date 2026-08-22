@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { AsyncResult, useAtomValue } from '@effect/atom-vue'
 import { Result } from 'effect'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
+import AtomButton from '@/components/atoms/AtomButton.vue'
 import TemplatePageLayout from '@/components/templates/TemplatePageLayout.vue'
-import { benchmarkAtom } from '@/features/training/atoms'
+import { benchmarkAtom, completedSessionsAtom } from '@/features/training/atoms'
 import { PLANS } from '@/features/training/catalog'
+import LogWorkoutSheet from '@/features/training/components/LogWorkoutSheet.vue'
 import TargetsCard from '@/features/training/components/TargetsCard.vue'
 import { formatSplit } from '@/features/training/pace'
 import { rotationFor, rotationNote } from '@/features/training/schedule'
@@ -16,6 +18,7 @@ import {
   formatDistance,
   formatRest,
   pieceDistanceM,
+  sessionDistanceM,
 } from '@/features/training/session'
 import { isRotationShifted, targetFor } from '@/features/training/targets'
 
@@ -28,6 +31,17 @@ const route = useRoute()
 const location = computed(() => findSession(PLANS, String(route.params.sessionId)))
 
 const benchmark = useAtomValue(() => benchmarkAtom)
+const completed = useAtomValue(() => completedSessionsAtom)
+
+const sheetOpen = ref(false)
+
+/** Already rowed — the log is what knows, so this cannot disagree with it. */
+const isLogged = computed(() => {
+  const current = location.value
+  if (current === null) return false
+
+  return AsyncResult.getOrElse(completed.value, () => new Set<string>()).has(current.session.id)
+})
 const benchmark2kMs = computed(
   () => AsyncResult.getOrElse(benchmark.value, () => null)?.timeMs ?? null,
 )
@@ -185,6 +199,22 @@ const backTo = computed(() => {
         </section>
 
         <p v-if="coachText !== ''" class="text-sm text-muted-foreground">{{ coachText }}</p>
+
+        <!-- The only write on this screen, and the one that moves the plan
+             on: a workout carrying this session's id is what `positionFor`
+             counts, so logging here is what advances Today. -->
+        <div class="flex flex-col gap-2">
+          <AtomButton @click="sheetOpen = true">{{ t('plans.detail.log') }}</AtomButton>
+          <p v-if="isLogged" class="text-center text-xs text-muted-foreground">
+            {{ t('plans.detail.logged') }}
+          </p>
+        </div>
+
+        <LogWorkoutSheet
+          v-model:open="sheetOpen"
+          :plan-session-id="location.session.id"
+          :distance-m="sessionDistanceM(location.session)"
+        />
       </template>
     </div>
   </TemplatePageLayout>

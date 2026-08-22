@@ -2,7 +2,9 @@ import type { RouteRecordRaw, Router, RouterHistory } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 
 export const RouteNames = {
+  today: 'today',
   plans: 'plans',
+  log: 'log',
   planWeek: 'plan-week',
   session: 'session',
   settings: 'settings',
@@ -21,11 +23,14 @@ declare module 'vue-router' {
 }
 
 const routes: Array<RouteRecordRaw> = [
-  // Plans is where the app opens: it is the screen that tells you what to row
-  // next, and the one that asks for the 2k everything else is derived from.
-  // The redirect rather than a second record: one route name means the tab
-  // bar still marks it current when the app opens on `/`.
-  { path: '/', redirect: { name: RouteNames.plans } },
+  // Today is the home screen, and the only one that answers the question a
+  // rower opens the app with. It is the path itself rather than a redirect:
+  // there is nothing left to redirect to now that it has content of its own.
+  {
+    path: '/',
+    name: RouteNames.today,
+    component: () => import('@/views/TodayView.vue'),
+  },
   {
     path: '/plans',
     name: RouteNames.plans,
@@ -46,6 +51,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/sessions/:sessionId',
     name: RouteNames.session,
     component: () => import('@/views/SessionView.vue'),
+  },
+  {
+    path: '/log',
+    name: RouteNames.log,
+    component: () => import('@/views/LogView.vue'),
   },
   {
     path: '/settings',

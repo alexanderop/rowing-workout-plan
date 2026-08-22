@@ -1,3 +1,6 @@
+import { Result } from 'effect'
+
+import { durationMsFor, type PaceRangeError } from './pace'
 import type { Plan, PlanSession, PlanWeek, SessionKind } from './types'
 
 /**
@@ -158,4 +161,25 @@ export function findSession(plans: ReadonlyArray<Plan>, sessionId: string): Sess
   }
 
   return null
+}
+
+/**
+ * How long the session takes, rest included — the "~27 min" a screen prints
+ * next to a session so you know whether you have time for it.
+ *
+ * Rest is `reps - 1` intervals, not `reps`: the last one is over when the
+ * last rep is. A steady row and a hard piece have one piece and no rest, so
+ * the term falls out to zero on its own rather than needing a branch.
+ *
+ * A `Result` because it divides by the split, and a session paced at zero is
+ * not a session that takes no time — it is a session with no target.
+ */
+export function sessionDurationMs(
+  session: PlanSession,
+  splitMs: number,
+): Result.Result<number, PaceRangeError> {
+  return Result.map(durationMsFor(sessionDistanceM(session), splitMs), (workMs) => {
+    const restCount = Math.max(0, (session.reps ?? 1) - 1)
+    return workMs + restCount * (session.restMs ?? 0)
+  })
 }

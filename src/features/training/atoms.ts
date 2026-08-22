@@ -79,3 +79,14 @@ export const activePlanAtom = dbRuntime
 export const completedSessionsAtom = dbRuntime
   .atom(logFailure('load workouts', listWorkouts).pipe(Effect.map(completedSessionIds)))
   .pipe(Atom.withReactivity([WORKOUTS_KEY]))
+
+/**
+ * The log itself, newest first — the same read the atom above reduces to a
+ * set of ids, kept separate because the Log screen wants the rows and every
+ * other screen wants only the ids. Two atoms over one table rather than one
+ * atom the screens each filter: a screen that only asks "is this done" should
+ * not re-render when a workout's wattage changes.
+ */
+export const workoutsAtom = dbRuntime
+  .atom(logFailure('load log', listWorkouts))
+  .pipe(Atom.withReactivity([WORKOUTS_KEY]))

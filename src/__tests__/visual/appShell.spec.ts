@@ -41,6 +41,16 @@ describe('visual regression', () => {
   })
 
   /**
+   * The home screen, and the only baseline with a four-tab bar under it.
+   */
+  it('today, light', async ({ today }) => {
+    const screen = await today({ benchmark2kMs: 424_200, planId: 'pete5k' })
+    await screen.expectReady()
+
+    await expect(screen.root).toMatchScreenshot('today-light')
+  })
+
+  /**
    * The densest screen in the app, and the one whose geometry is most likely
    * to break silently: a horizontally scrolling strip inside a padded column,
    * six rows each balancing three columns of text, and a target that is

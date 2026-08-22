@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@effect/vitest'
+import { Result } from 'effect'
 
 import { pete5k, pete5kLite, PLANS } from '@/features/training/catalog'
 import {
@@ -9,6 +10,7 @@ import {
   kilometres,
   pieceDistanceM,
   sessionDistanceM,
+  sessionDurationMs,
   weekDistanceM,
 } from '@/features/training/session'
 import type { PlanSession, PlanWeek } from '@/features/training/types'
@@ -181,6 +183,47 @@ describe('pieceDistanceM', () => {
 
   it('is zero for a session missing the field its kind needs', () => {
     expect(pieceDistanceM(session({ kind: 'shortRest', reps: 6 }))).toBe(0)
+  })
+})
+
+describe('sessionDurationMs', () => {
+  const succeeded = <A, E>(result: Result.Result<A, E>): A => Result.getOrThrow(result)
+  const failed = <A, E>(result: Result.Result<A, E>): E => Result.getOrThrow(Result.flip(result))
+
+  it('is the canvas estimate for week 3 session 2', () => {
+    // 6 × 1k at 1:52.0 is 22.4 minutes of work plus five minutes of rest —
+    // "~27 min incl. rest", which is what the design canvas prints.
+    const intervals = session({ kind: 'shortRest', reps: 6, repDistanceM: 1000, restMs: 60_000 })
+
+    expect(Math.round(succeeded(sessionDurationMs(intervals, 112_050)) / 60_000)).toBe(27)
+  })
+
+  it('counts the gaps between the reps, not one per rep', () => {
+    // The last rest is not rest, it is the end of the session.
+    const four = session({ kind: 'shortRest', reps: 4, repDistanceM: 500, restMs: 60_000 })
+    const work = succeeded(sessionDurationMs({ ...four, restMs: 0 }, 120_000))
+
+    expect(succeeded(sessionDurationMs(four, 120_000)) - work).toBe(3 * 60_000)
+  })
+
+  it('has no rest term for the two kinds that are a single effort', () => {
+    const steady = session({ kind: 'steady', minDistanceM: 10_000 })
+    const piece = session({ kind: 'distancePiece', distanceM: 5000 })
+
+    expect(succeeded(sessionDurationMs(steady, 126_000))).toBe(2_520_000)
+    expect(succeeded(sessionDurationMs(piece, 112_000))).toBe(1_120_000)
+  })
+
+  it('refuses a session with no target rather than reporting no time', () => {
+    const steady = session({ kind: 'steady', minDistanceM: 10_000 })
+
+    expect(failed(sessionDurationMs(steady, 0))).toMatchObject({ field: 'splitMs' })
+  })
+
+  it('refuses a session with no distance', () => {
+    expect(failed(sessionDurationMs(session({ kind: 'steady' }), 126_000))).toMatchObject({
+      field: 'distanceM',
+    })
   })
 })
 

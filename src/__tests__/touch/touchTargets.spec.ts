@@ -139,6 +139,24 @@ describe('touch targets', () => {
     expect(undersized, report(undersized)).toEqual([])
   })
 
+  it('clears the floor on the log', async ({ log }) => {
+    // The filter chips are the new shape here: small, side by side, and the
+    // one control on any screen a thumb is most likely to miss.
+    const screen = await log({ workouts: [{ distanceM: 10_000 }] })
+    await screen.expectReady()
+
+    const undersized = undersizedControls(document.body)
+    expect(undersized, report(undersized)).toEqual([])
+  })
+
+  it('clears the floor in the log-a-row sheet', async ({ log }) => {
+    const screen = await log()
+    await screen.logRow()
+
+    const undersized = undersizedControls(document.body)
+    expect(undersized, report(undersized)).toEqual([])
+  })
+
   it('clears the floor in a dialog', async ({ settings }) => {
     stubInstallPromptAvailable()
     await settings.install.expectVisible()

@@ -70,6 +70,28 @@ const INTERPOLATED = {
       'plans.rotation.final',
     ],
   },
+  'features/training/components/LogRow.vue': {
+    reason:
+      'A log row reuses the plan sentences declared for SessionRow — a session reads the same in the log as it did on the day it was set.',
+    keys: [],
+  },
+  'views/LogView.vue': {
+    reason:
+      'The filter chips and the week headings are both closed sets that history.ts owns (WORKOUT_FILTERS, HistoryBucket), so the keys are built from them.',
+    keys: [
+      'log.filter.all',
+      'log.filter.plan',
+      'log.filter.free',
+      'log.bucket.thisWeek',
+      'log.bucket.lastWeek',
+      'log.bucket.earlier',
+    ],
+  },
+  'views/TodayView.vue': {
+    reason:
+      "Today names the next session with the same sentence and kind keys the week list uses; both sets are declared on SessionRow's entry.",
+    keys: [],
+  },
   'views/SessionView.vue': {
     reason:
       'The title reuses the session sentences declared above, the kind line reuses the kind labels, and the coaching note is the same four rotation positions said to someone about to row one.',
