@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/hooks/docs.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Loading project knowledge"
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/hooks/references.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Resolving project references"
+          }
+        ]
+      }
+    ]
+  }
+}

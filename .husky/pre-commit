@@ -1,0 +1,17 @@
+# Commit-time gate — budget is ~15s total, so only the fast checks live here:
+#
+#   lint-staged  formatters/linters, staged files only
+#   type-check   vue-tsc --build, incremental
+#   test:unit    Node unit tier, no browser/IndexedDB (fast)
+#   knip         dead exports
+#
+# Deliberately NOT here: the browser/a11y/visual/e2e tiers. They cost minutes
+# and CI owns them. Never bypass this hook with `git commit --no-verify` —
+# if the gate is wrong, fix the gate.
+
+set -e
+
+pnpm lint-staged
+pnpm -s type-check
+pnpm -s test:unit
+pnpm -s knip

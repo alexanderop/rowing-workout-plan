@@ -1,0 +1,14 @@
+{
+  "extends": "@tsconfig/node22/tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tools.tsbuildinfo",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"],
+    "noEmit": true,
+    // Oxlint loads the plugin as TypeScript source and Node strips the types,
+    // so a rule imports its neighbours by their real `.ts` path.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["tools/**/*.ts"]
+}

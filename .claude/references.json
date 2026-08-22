@@ -1,0 +1,29 @@
+{
+  "effect": {
+    "repository": "Effect-TS/effect",
+    "branch": "pinned/4.0.0-beta.105",
+    "description": "Effect source of truth, pinned to the 4.0.0-beta.105 this project depends on. Read it for any Effect v4 question the docs/effect/ concepts do not answer: API availability, actual runtime behavior, LLMS.md, packages/effect/SCHEMA.md, the runnable examples under ai-docs/src/**, and the package tests. Online docs and v3 training data describe a different API and are not usable here."
+  },
+  "reka-ui": {
+    "repository": "unovue/reka-ui",
+    "description": "Reka UI source — the headless behaviour every primitive under src/components/<tier>/<name>/ wraps. packages/core/src/<Name>/ is the authority on what a part accepts, emits, and writes to the DOM (data-state, ARIA wiring, portal and focus handling): read the .vue file's exported *Props / *Emits types rather than recalling an API. docs/content/ holds the per-component usage pages."
+  },
+  "shadcn-vue": {
+    "repository": "unovue/shadcn-vue",
+    "description": "The component style this project copies but does not depend on. apps/v4/registry/new-york-v4/ui/<name>/ is the canonical file shape for a primitive — props plus class, reactiveOmit, useForwardProps, data-slot, cn(defaults, props.class) — and apps/v4/registry/bases/reka/ shows the same parts against a different base. Copy the structure, not the classes: this app has its own tokens. See docs/ui-components.md for the deviations that are deliberate."
+  },
+  "vueuse": {
+    "repository": "vueuse/vueuse",
+    "description": "VueUse source — the authoring conventions docs/composables.md adopts, and the implementation of every composable this app wraps. packages/guidelines.md and packages/guide/best-practice.md are the conventions themselves (reactive arguments, options objects, shallowRef, isSupported, self-disposing effects); packages/core/<name>/index.ts is what a function actually does and what it actually returns — useMediaQuery, useDark, useColorMode, useStorage, useTimestamp, useEventListener, useSupported — and packages/shared/<name>/ holds the primitives the rules name, createSharedComposable, createGlobalState and tryOnScopeDispose. Read the source over the website when a return shape or a cleanup question matters. This project deviates from four of the guidelines deliberately: docs/composables.md says which, and following upstream instead is a regression here.",
+    "pull": true
+  },
+  "vitest": {
+    "repository": "vitest-dev/vitest",
+    "branch": "pinned/4.1.10",
+    "description": "Vitest source, pinned to the 4.1.10 this project runs. Read it for the runner APIs the architecture tier is built on, and before assuming a 4.x feature exists: docs/guide/extending-matchers.md and packages/expect/ for custom matchers (Matcher / MatcherState / this.task, 4.1); docs/guide/snapshot.md plus packages/snapshot/ for toMatchFileSnapshot, the Snapshots composables and the DomainSnapshotAdapter (4.1.4) — the machinery an ArchUnit-style freeze() would sit on; docs/api/advanced/metadata.md and artifacts.md for attaching structured violations to a task; docs/api/advanced/reporters.md and packages/vitest/src/node/reporters/ for consuming them; docs/guide/test-context.md for worker/file-scoped fixtures; docs/config/globalsetup.md plus docs/api/advanced/test-project.md for reaching project.vite (a real ViteDevServer) and provide()-ing derived data into tests. packages/vitest/src/utils/graph.ts and node/module-diagnostic.ts are working examples of walking Vite's EnvironmentModuleGraph — the alias- and .vue-aware import graph ArchUnitTS cannot see."
+  },
+  "stryker-js": {
+    "repository": "stryker-mutator/stryker-js",
+    "description": "Stryker source, for questions docs/mutation-testing.md does not answer. packages/vitest-runner/src/ is how mutants reach Vitest (one long-lived createVitest instance, mutant selected via ctx.provide, related mode per mutant); packages/instrumenter/src/ is which mutators fire on which syntax, including the .vue and ignorer-plugin paths; e2e/test/vitest-* are working fixtures for projects, property-based tests, and Vue+TS setups. packages/api/schema/stryker-core.json is the authoritative option list with defaults."
+  }
+}

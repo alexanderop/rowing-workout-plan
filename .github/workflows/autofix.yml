@@ -1,0 +1,44 @@
+# The name is load-bearing: autofix.ci identifies the workflow by it.
+#
+# Turns the mechanical half of CI from a red X into a commit. Formatting and
+# lint --fix findings are things a machine can repair exactly, so failing a PR
+# over them only asks a human to run a command and push again. lint-staged
+# fixes what is staged on the way in; this covers everything it never saw — a
+# file touched by a rebase, a merge resolution, an edit made in the GitHub web
+# editor, or a contributor with no hooks installed.
+#
+# It replaces nothing: `pnpm lint:check` and `pnpm format:check` still run in
+# ci.yml and still fail on anything --fix cannot repair.
+name: autofix.ci
+
+on:
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  autofix:
+    name: Autofix formatting and lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout; autofix.ci pushes through its own app
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+
+      # The fixing variants, not the `:check` ones — the point is to leave the
+      # tree repaired. `markdownlint-cli2 --fix` is separate from `pnpm lint`
+      # because that script's md pass only reports.
+      - run: pnpm lint:oxlint
+      - run: pnpm lint:eslint
+      - run: pnpm exec markdownlint-cli2 --fix "**/*.md" "#node_modules"
+      - run: pnpm format
+
+      - uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a # v1.3.4

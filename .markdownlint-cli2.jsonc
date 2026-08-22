@@ -1,0 +1,13 @@
+{
+  "config": {
+    // Long lines are fine in prose; wrap where it reads well.
+    "MD013": false,
+    // Inline HTML is used for the README feature matrix.
+    "MD033": false,
+    // OKF concept files carry a frontmatter `title` AND a body H1: the
+    // frontmatter is for consumers, the H1 is what a human reads. Stop
+    // markdownlint counting the frontmatter title as the document's H1.
+    "MD025": { "front_matter_title": "" }
+  },
+  "ignores": ["node_modules", "dist", "dev-dist", "coverage", "test-results", "playwright-report"]
+}

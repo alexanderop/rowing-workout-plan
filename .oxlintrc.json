@@ -1,0 +1,47 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // The plugin grades the project, not itself. A lint rule walks an ESTree
+  // union it did not define and cannot decode, so `unknown` parameters and
+  // shape assertions are the job rather than a smell. docs/oxlint-rules.md
+  "ignorePatterns": ["tools/oxlint/**"],
+  "jsPlugins": [
+    { "name": "anti-slop", "specifier": "./tools/oxlint/anti-slop/index.ts" },
+    { "name": "anti-slop-effect", "specifier": "./tools/oxlint/anti-slop/effect/index.ts" }
+  ],
+  "rules": {
+    "anti-slop/no-chained-type-assertions": "error",
+    "anti-slop/no-conditional-empty-object-spread": "error",
+    "anti-slop/no-known-value-widening": "error",
+    "anti-slop/no-module-mocking": "error",
+    "anti-slop/no-object-parameters": "error",
+    "anti-slop/no-reflect-apply": "error",
+    "anti-slop/no-reflect-get": "error",
+    "anti-slop/no-runtime-typeof": ["error", { "allowInTypeGuards": true }],
+    "anti-slop/no-shape-in-symbol-names": "error",
+    "anti-slop/no-unknown-parameters": "error",
+    "anti-slop/no-unknown-returns": "error",
+    "anti-slop/no-unknown-type-aliases": "error",
+    "anti-slop/no-unsafe-dictionary-type": "error",
+    "anti-slop/no-widen-then-assert": "error",
+    "anti-slop/require-safety-comment-for-type-assertion": "error",
+    "anti-slop-effect/no-service-constructor-imports": "error"
+  },
+  "overrides": [
+    {
+      "files": ["src/__tests__/**", "test/**"],
+      "rules": {
+        "no-empty-pattern": ["warn", { "allowObjectPatternsAsParameters": true }]
+      }
+    },
+    {
+      // The agent hooks are plain `.mjs` with no type layer to decode into:
+      // they read hand-written JSON config and branch on its shape, which is
+      // the case `no-runtime-typeof` exists to redirect and here has nowhere
+      // to redirect to.
+      "files": [".claude/**", ".codex/**"],
+      "rules": {
+        "anti-slop/no-runtime-typeof": "off"
+      }
+    }
+  ]
+}

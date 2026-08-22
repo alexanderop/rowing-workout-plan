@@ -1,0 +1,48 @@
+import process from 'node:process'
+import { defineConfig, devices } from '@playwright/test'
+import { defineBddConfig } from 'playwright-bdd'
+
+const baseURL = 'http://127.0.0.1:5678'
+
+// Must run before defineConfig(): it resolves and caches the BDD config so
+// workers can read it back, and returns the generated directory of
+// Playwright spec files produced from test/e2e/features/**.
+const bddTestDir = defineBddConfig({
+  features: 'test/e2e/features/**/*.feature',
+  // fixtures.ts is loaded alongside the steps on purpose: playwright-bdd
+  // resolves which `test` the generated specs import by scanning these files
+  // for an exported test instance, and ours lives there with the page
+  // objects it provides.
+  steps: ['test/e2e/fixtures.ts', 'test/e2e/steps/**/*.ts'],
+})
+
+export default defineConfig({
+  fullyParallel: true,
+  forbidOnly: Boolean(process.env.CI),
+  retries: process.env.CI ? 2 : 0,
+  reporter: process.env.CI ? [['html', { open: 'never' }]] : [['list']],
+  timeout: 60_000,
+  outputDir: 'test-results/e2e',
+  // E2E runs against the production build (vite preview), not the dev
+  // server — it verifies what actually ships, service worker included.
+  webServer: {
+    command: 'pnpm start:playwright:webserver',
+    url: baseURL,
+    reuseExistingServer: false,
+    timeout: 60_000,
+  },
+  use: {
+    baseURL,
+    screenshot: 'only-on-failure',
+    trace: 'on-first-retry',
+  },
+  projects: [
+    {
+      name: 'bdd',
+      testDir: bddTestDir,
+      // A mobile profile on purpose: this shell is mobile-first, so the
+      // e2e flow exercises the bottom nav the way users actually hit it.
+      use: { ...devices['Pixel 7'] },
+    },
+  ],
+})

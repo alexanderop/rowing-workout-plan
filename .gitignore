@@ -1,0 +1,42 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+dev-dist
+stats.html
+
+# Caches
+.eslintcache
+.vitest
+.vitest-attachments
+node_modules/.tmp
+
+# Test output
+test-results
+playwright-report
+.features-gen
+coverage
+
+# Only the visual tier keeps screenshot baselines. A __screenshots__ directory
+# under any other tier holds Vitest's on-failure captures, which are debugging
+# output — one was committed by accident before this rule existed.
+src/__tests__/**/__screenshots__/
+!src/__tests__/visual/__screenshots__/
+.stryker-tmp
+reports
+
+# Editor / OS
+.DS_Store
+*.local
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log
+
+# Agent config — the committed half is .claude/settings.json and
+# .claude/references.json; these two are per-machine overrides.
+.claude/settings.local.json
+.claude/references.local.json

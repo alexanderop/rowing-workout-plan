@@ -1,0 +1,56 @@
+# The commenting half of the dependency diff — see dependency-diff.yml for
+# why it is a second workflow.
+#
+# `workflow_run` runs from the default branch with no PR code checked out, so
+# the `pull-requests: write` token below is never in the same job as a fork's
+# code. Nothing here executes anything from the pull request: it downloads the
+# artifact the analysis produced and renders it.
+name: dependency-diff-comment
+
+# zizmor flags every `workflow_run`, and rightly — it is usually the insecure
+# half of this pattern. The insecure shape is the one being avoided here: this
+# job never checks out the pull request, never runs a script from it, and never
+# hands a token to anything that came out of it. It reads a JSON artifact and
+# posts it.
+#
+# What a fork can still influence is the comment's *content*, and which PR
+# number it lands on. That is comment spam — not code execution, not a leaked
+# secret. The alternative is holding `pull-requests: write` in a job with a
+# fork's code checked out beside it, which is strictly worse and is what this
+# split exists to avoid.
+on: # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows: [dependency-diff]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+jobs:
+  comment:
+    name: Comment the dependency diff
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      pull-requests: write # post and update the diff comment
+      actions: read # download the artifact from the analysis run
+    steps:
+      - name: Download the diff
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dependency-diff
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post the comment
+        # Keep this SHA identical to the one in dependency-diff.yml: the two
+        # halves exchange the artifact this reads, so they share its format.
+        uses: e18e/action-dependency-diff@6fdf9b0581697fc0268c689d774850f95c7b2bf0 # main @ 2026-07-27, unreleased
+        with:
+          mode: comment-from-artifact
+          # The basename the analysis step writes, not the artifact name above:
+          # download-artifact extracts the file under its original name.
+          artifact-path: e18e-diff-result.json

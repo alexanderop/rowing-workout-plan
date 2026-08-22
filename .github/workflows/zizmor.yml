@@ -1,0 +1,43 @@
+# Static analysis of the workflows themselves — https://docs.zizmor.sh/
+#
+# The repo already pins every action to a commit SHA and sets least-privilege
+# `permissions` by hand. This is what keeps that true: the pedantic persona
+# catches the whole class of mistake that is invisible in review — a template
+# workflow pasted in with a floating tag, `pull_request_target` handed a
+# checkout of untrusted code, a job that inherits write permissions it never
+# needed, an expression interpolated into a `run:` block.
+#
+# There is a `harden-github-actions` skill that runs the same tool on demand.
+# A check that depends on someone remembering to invoke it is not a gate.
+name: zizmor
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  zizmor:
+    name: Workflow security analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          persona: pedantic
+          # Annotations rather than SARIF: findings land on the diff without
+          # needing `security-events: write`, which this job would otherwise
+          # have to be trusted with.
+          annotations: true
+          advanced-security: false

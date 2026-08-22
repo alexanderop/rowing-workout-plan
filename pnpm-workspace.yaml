@@ -1,0 +1,91 @@
+catalogs:
+  build:
+    '@tsconfig/node22': ^22.0.5
+    '@types/node': ^26.0.0
+    '@vite-pwa/assets-generator': ^1.0.2
+    '@vitejs/plugin-vue': ^6.0.8
+    '@vue/tsconfig': ^0.9.1
+    husky: ^9.1.7
+    jiti: ^2.7.0
+    npm-run-all2: ^9.0.2
+    typescript: ~6.0.3
+    vite: ^8.0.16
+    vite-plugin-pwa: ^1.3.0
+    vite-plugin-vue-devtools: ^8.1.5
+    vue-tsc: ^3.3.7
+    workbox-window: ^7.4.1
+  frontend:
+    # Pinned exactly — ~/Projects/opensource/effect is checked out at this version
+    # (branch pinned/4.0.0-beta.105) as the agent-readable source of truth.
+    # @effect/atom-vue is versioned in lockstep with effect and must move with it.
+    '@effect/atom-vue': 4.0.0-beta.105
+    '@vueuse/core': ^14.3.0
+    dexie: ^4.4.4
+    effect: 4.0.0-beta.105
+    # Not pinned: @effect/atom-vue's peer range is `>=3.5.39`, and the exact
+    # 3.5.38 this started on left that peer unmet. The dev toolchain (vue-tsc,
+    # @vue/test-utils, vite-plugin-vue-inspector) resolves @vue/compiler-* on
+    # its own range, so an exact pin here also forks the compiler packages into
+    # two copies. A caret keeps both problems from coming back.
+    vue: ^3.5.41
+    vue-i18n: ^11.4.6
+    vue-router: ^5.1.0
+    web-vitals: ^5.3.0
+  lint:
+    '@e18e/eslint-plugin': ^0.6.0
+    '@oxlint/plugins': ~1.79.0
+    '@size-limit/file': ^12.1.0
+    '@vue/eslint-config-prettier': ^10.2.0
+    '@vue/eslint-config-typescript': ^14.8.0
+    eslint: ^10.5.0
+    eslint-plugin-oxlint: ~1.79.0
+    eslint-plugin-regexp: ^3.1.1
+    eslint-plugin-vue: ~10.9.2
+    knip: ^6.17.1
+    lint-staged: ^17.0.8
+    markdownlint-cli2: ^0.22.1
+    oxlint: ~1.79.0
+    prettier: 3.8.4
+    size-limit: ^12.1.0
+  testing:
+    # Pinned exactly, in lockstep with the `effect` pin in catalog frontend.
+    '@effect/vitest': 4.0.0-beta.105
+    '@playwright/test': ^1.61.1
+    # Stryker's vitest-runner is developed against the same vitest it finds in
+    # the sandbox — 9.6.x dev-tests against 4.1.10. Move it with the vitest pin.
+    # api is imported only for the config file's JSDoc type.
+    '@stryker-mutator/api': ^9.6.1
+    '@stryker-mutator/core': ^9.6.1
+    '@stryker-mutator/vitest-runner': ^9.6.1
+    '@vitest/browser': ^4.1.10
+    '@vitest/browser-playwright': ^4.1.10
+    '@vitest/coverage-v8': ^4.1.10
+    archunit: ^2.3.3
+    axe-core: ^4.12.1
+    fake-indexeddb: ^6.2.5
+    playwright: ^1.61.1
+    playwright-bdd: 9.2.0
+    vitest: ^4.1.10
+    vitest-browser-vue: ^2.1.0
+  ui:
+    '@lucide/vue': ^1.21.0
+    '@tailwindcss/vite': ^4.3.3
+    class-variance-authority: ^0.7.1
+    clsx: ^2.1.1
+    reka-ui: ^2.10.1
+    tailwind-merge: ^3.6.0
+    tailwindcss: ^4.3.3
+    tw-animate-css: ^1.4.0
+
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+
+# @tailwindcss/node depends on lightningcss at an exact 1.32.0 while vite wants
+# ^1.33.0, and lightningcss ships one prebuilt binary per platform — so a single
+# patch-level disagreement forks into twelve duplicate packages, the largest
+# block in the tree. Both consumers only call `transform`/`bundle`, which did
+# not change between the two, so lifting tailwind onto vite's version is safe.
+# Drop this the moment @tailwindcss/node moves its pin to 1.33.0 or later.
+overrides:
+  lightningcss: 1.33.0
