@@ -25,6 +25,16 @@ describe('accessibility tree', () => {
     await expect.element(settings.tabBar).toMatchAriaSnapshot()
   })
 
+  it('the delete-everything confirmation names both ways out', async ({ settings }) => {
+    // The one dialog in the app where the *shape* is the safety: a named
+    // dialog, the warning as its description, and two buttons that say which
+    // is which. A confirm that loses its description, or whose cancel stops
+    // being a button, is still a dialog axe has nothing to say about.
+    await settings.openDeleteDialog()
+
+    await expect.element(settings.deleteDialog).toMatchAriaSnapshot()
+  })
+
   it('the install dialog is a labelled dialog with described steps', async ({ settings }) => {
     stubInstallPromptAvailable()
     await settings.install.expectVisible()

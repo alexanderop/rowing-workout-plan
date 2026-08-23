@@ -37,6 +37,7 @@ export type {
   WorkoutDraft,
   WorkoutInterval,
 } from './converters'
+export { deleteAllData } from './deleteAll'
 export { deleteBenchmark, listBenchmarks, recordBenchmark } from './repositories/benchmarks'
 export { deleteEnrolment, enrolInPlan, listEnrolments } from './repositories/enrolments'
 export { deleteWorkout, listWorkouts, logWorkout } from './repositories/workouts'

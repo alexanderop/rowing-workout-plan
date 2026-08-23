@@ -26,6 +26,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -66,7 +67,14 @@
   --muted-foreground: oklch(0.52 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  /* Darker than shadcn's 0.577, and the a11y tier is why. Chromium gamut-maps
+     this hue to #e40016 at that lightness, which carries near-white text at
+     4.68:1 — and the button's own `hover:bg-destructive/90` thins it toward
+     the page and lands at 4.36:1, an AA fail nobody sees until a pointer
+     rests on the delete button. 0.53 clears AA in both states (5.66 and
+     5.19), and takes the `text-destructive` error messages up with it. */
+  --destructive: oklch(0.53 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
   --success: oklch(0.59 0.2 142);
   --success-foreground: oklch(0.985 0 0);
   --warning: oklch(0.75 0.18 55);
@@ -99,6 +107,12 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  /* Near-black, for the same reason --primary-foreground above is: dark mode
+     lightens --destructive so an error message stays legible as
+     `text-destructive` on a dark surface, and at that lightness white text on
+     it is 3.8:1 — a fail. Measured on the delete-everything button, which is
+     the first thing in the app to put text on this colour. */
+  --destructive-foreground: oklch(0.145 0 0);
   --success: oklch(0.7 0.17 142);
   --success-foreground: oklch(0.145 0 0);
   --warning: oklch(0.8 0.16 75);

@@ -41,6 +41,8 @@ export class EnrolmentsRepo extends Context.Service<
     remove: (id: string) => Effect.Effect<void, DatabaseError>
     /** Overwrites rows with matching ids — the import primitive. */
     putMany: (rows: ReadonlyArray<PlanEnrolment>) => Effect.Effect<void, DatabaseError>
+    /** Empties the table — the delete-everything primitive. */
+    clear: () => Effect.Effect<void, DatabaseError>
   }
 >()('vue-pwa-starter/db/EnrolmentsRepo') {
   static readonly layer = Layer.effect(
@@ -100,6 +102,10 @@ export class EnrolmentsRepo extends Context.Service<
             })
           })
         }),
+
+        clear: Effect.fn('EnrolmentsRepo.clear')(function* () {
+          yield* tryDb('clear enrolments', () => db.enrolments.clear())
+        }),
       })
     }),
   )
@@ -149,6 +155,10 @@ export class EnrolmentsRepo extends Context.Service<
             for (const row of incoming) next.set(row.id, row)
             return next
           })
+        }),
+
+        clear: Effect.fn('EnrolmentsRepo.Test.clear')(function* () {
+          yield* Ref.set(rows, new Map())
         }),
       })
     }),

@@ -10,6 +10,7 @@ const de: MessageSchema = {
   },
   common: {
     buttons: {
+      cancel: 'Abbrechen',
       close: 'Schließen',
       save: 'Speichern',
     },
@@ -216,6 +217,17 @@ const de: MessageSchema = {
       importError: 'Diese Datei konnte nicht importiert werden',
       invalidBackup: 'Diese Datei ist kein Backup dieser App',
       exportError: 'Deine Daten konnten nicht exportiert werden',
+      deleteHint: 'Damit wird alles Aufgezeichnete entfernt. Rückgängig machen geht nicht.',
+      deleteAll: 'Alles löschen',
+      deleteSuccess: 'Alle Daten wurden gelöscht',
+      deleteError: 'Deine Daten konnten nicht gelöscht werden',
+      confirmDelete: {
+        title: 'Wirklich alles löschen?',
+        description:
+          'Alle Trainings, 2k-Zeiten und Pläne auf diesem Gerät werden entfernt. Es gibt keine andere Kopie, und das lässt sich nicht rückgängig machen — exportiere vorher ein Backup, falls du die Daten noch brauchst.',
+        keeps: 'Darstellung und Sprache bleiben unverändert.',
+        confirm: 'Ja, alles löschen',
+      },
     },
   },
   pwa: {

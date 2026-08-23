@@ -37,7 +37,7 @@ const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
         outline: 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
-        destructive: 'bg-destructive text-white shadow-xs hover:bg-destructive/90',
+        destructive: 'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90',
       },
       size: {
         default: 'h-touch-target px-4 py-2 pointer-fine:h-10',
