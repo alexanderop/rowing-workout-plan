@@ -235,6 +235,12 @@ const de: MessageSchema = {
         confirm: 'Ja, alles löschen',
       },
     },
+    about: {
+      title: 'Über',
+      version: 'Version',
+      commit: 'Commit',
+      buildTime: 'Erstellt',
+    },
   },
   pwa: {
     updateAvailable: 'Eine neue Version ist verfügbar',

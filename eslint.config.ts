@@ -265,6 +265,7 @@ export const CORE = [
  * ones allowed to reach for a test double.
  */
 export const PLATFORM_EDGE = [
+  'src/lib/appVersion.ts',
   'src/lib/ergBluetooth.ts',
   'src/lib/ergCapture.ts',
   'src/lib/persistentStorage.ts',

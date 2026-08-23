@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Download, Smartphone, Trash2, Upload } from '@lucide/vue'
+import { Download, Info, Smartphone, Trash2, Upload } from '@lucide/vue'
 import { Effect } from 'effect'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TemplatePageLayout from '@/components/templates/TemplatePageLayout.vue'
 import OrganismPwaInstallDialog from '@/components/organisms/OrganismPwaInstallDialog.vue'
@@ -24,6 +24,7 @@ import { useReportFailure } from '@/composables/useReportFailure'
 import { useTheme } from '@/composables/useTheme'
 import { dbMutation, deleteAllData, exportData, importData, runDb } from '@/db'
 import type { SupportedLocale } from '@/i18n'
+import { appVersion, formatBuildTime } from '@/lib/appVersion'
 import { downloadBackup, readBackupFile } from '@/lib/backupFile'
 import { useToastStore } from '@/stores/toast'
 
@@ -31,6 +32,8 @@ const { t } = useI18n()
 const { isDark } = useTheme()
 const { locale, setLocale, supportedLocales } = useLocale()
 const toast = useToastStore()
+
+const formattedBuildTime = computed(() => formatBuildTime(appVersion.buildTime, locale.value))
 
 // The way back in after "Not now" — a dismissed hint is persisted forever, so
 // without this the install path would be a one-time offer.
@@ -238,6 +241,34 @@ async function handleDeleteAll(): Promise<void> {
               </AtomButton>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-3">
+        <h2 class="text-section-title font-semibold">{{ t('settings.about.title') }}</h2>
+        <div class="flex items-start gap-3 rounded-lg border p-4">
+          <Info aria-hidden="true" class="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+          <dl class="min-w-0 flex-1 space-y-3">
+            <div>
+              <dt class="font-medium">{{ t('settings.about.version') }}</dt>
+              <dd class="text-sm text-muted-foreground">
+                {{ appVersion.version }}
+                <template v-if="appVersion.tag"> ({{ appVersion.tag }}) </template>
+              </dd>
+            </div>
+            <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <dt>{{ t('settings.about.commit') }}</dt>
+              <dd>
+                <code class="select-text">{{ appVersion.commit }}</code>
+              </dd>
+              <dt>{{ t('settings.about.buildTime') }}</dt>
+              <dd>
+                <time class="select-text" :datetime="appVersion.buildTime">
+                  {{ formattedBuildTime }}
+                </time>
+              </dd>
+            </div>
+          </dl>
         </div>
       </section>
     </div>

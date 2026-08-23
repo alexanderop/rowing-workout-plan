@@ -5,11 +5,13 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import { versionPlugin } from './vite-plugins/versionPlugin.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
+    versionPlugin(),
     tailwindcss(),
     // The floating DevTools panel overlays the bottom of small viewports and
     // can swallow taps on the bottom navigation in browser-driven checks.

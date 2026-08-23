@@ -250,6 +250,12 @@ export default {
         confirm: 'Yes, delete everything',
       },
     },
+    about: {
+      title: 'About',
+      version: 'Version',
+      commit: 'Commit',
+      buildTime: 'Built',
+    },
   },
   pwa: {
     updateAvailable: 'A new version is available',

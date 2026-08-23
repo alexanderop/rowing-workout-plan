@@ -42,11 +42,11 @@ independent signals already agreed on them:
 Three different questions, one answer. That is the edge; everything above it is
 reactive glue; what is left is the core.
 
-| Layer              | What it is                                           | Where it lives                                                                                                                                                         | Rule                                                  |
-| ------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| **Core**           | Pure decisions over values                           | `db/converters.ts`, `features/*/{catalog,domain,history,pace,progress,schedule,session,targets,types}.ts`, `lib/installPlatform.ts`, `lib/utils.ts`                    | Deterministic; no complexity cap                      |
-| **Reactive shell** | Components, composables, stores, atoms, repositories | `**/*.vue`, `composables/`, `stores/`, `db/`, `features/*/atoms.ts`, `features/*/use*.ts`                                                                              | Stays thin: `max-depth 1`, complexity 4, 7 statements |
-| **Platform edge**  | Modules whose whole job is one fallible browser API  | `lib/persistentStorage.ts`, `lib/swUpdateCheck.ts`, `lib/download.ts`, `lib/themeColor.ts`, `lib/backupFile.ts`, `lib/webVitals.ts`, `lib/observability.ts`, `main.ts` | Exempt from both, and the only place a spec may mock  |
+| Layer              | What it is                                           | Where it lives                                                                                                                                                                              | Rule                                                  |
+| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **Core**           | Pure decisions over values                           | `db/converters.ts`, `features/*/{catalog,domain,history,pace,progress,schedule,session,targets,types}.ts`, `lib/installPlatform.ts`, `lib/utils.ts`                                         | Deterministic; no complexity cap                      |
+| **Reactive shell** | Components, composables, stores, atoms, repositories | `**/*.vue`, `composables/`, `stores/`, `db/`, `features/*/atoms.ts`, `features/*/use*.ts`                                                                                                   | Stays thin: `max-depth 1`, complexity 4, 7 statements |
+| **Platform edge**  | Modules whose whole job is one browser or build API  | `lib/appVersion.ts`, `lib/persistentStorage.ts`, `lib/swUpdateCheck.ts`, `lib/download.ts`, `lib/themeColor.ts`, `lib/backupFile.ts`, `lib/webVitals.ts`, `lib/observability.ts`, `main.ts` | Exempt from both, and the only place a spec may mock  |
 
 The three sets are defined once, as exported globs in `eslint.config.ts`.
 `functionalCore.test.ts` reads them back out of that file as text rather than
@@ -160,5 +160,8 @@ build order.
 
 Adding a module to `lib/` is the case that needs a decision. Ask what it reads.
 If it takes its inputs as arguments it is core, and if its whole job is one
-fallible browser API it belongs in `PLATFORM_EDGE` in `eslint.config.ts`, which
-is a deliberate, reviewable act rather than a default.
+browser or build API it belongs in `PLATFORM_EDGE` in `eslint.config.ts`, which
+is a deliberate, reviewable act rather than a default. `appVersion.ts` is the
+build-side example: it adapts the immutable values that Vite injects, while the
+plugin that obtains them stays outside the shipped application under
+`vite-plugins/`.

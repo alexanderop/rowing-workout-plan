@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 import { playwright } from '@vitest/browser-playwright'
 import { VitePWA } from 'vite-plugin-pwa'
 import { configDefaults, defineConfig } from 'vitest/config'
+import { versionPlugin } from './vite-plugins/versionPlugin.ts'
 
 // Shared resolve config for path aliases
 const resolve = {
@@ -69,7 +70,19 @@ function browserConfig(name: string) {
 }
 
 // Shared plugins for all browser projects
-const plugins = [vue(), tailwindcss(), VitePWA({ devOptions: { enabled: true } })]
+const plugins = [
+  vue(),
+  // Build provenance is dynamic in production, but a screenshot baseline
+  // cannot change with the wall clock or every commit. Browser projects use
+  // representative fixed values; `vite.config.ts` keeps the real metadata.
+  versionPlugin({
+    tag: null,
+    commit: '0123456789ab',
+    buildTime: '2026-01-01T12:00:00.000Z',
+  }),
+  tailwindcss(),
+  VitePWA({ devOptions: { enabled: true } }),
+]
 
 // Shared base configuration: component/feature/a11y/visual tests all run in
 // Playwright browser mode for real-browser behavior (real CSS, real events,

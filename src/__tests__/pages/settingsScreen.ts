@@ -5,6 +5,12 @@ import type { BackupFixture } from '../helpers/backup'
 import { renderApp } from '../helpers/renderApp'
 import { AppScreen } from './appScreen'
 
+interface ExpectedVersion {
+  readonly version: string
+  readonly commit: string
+  readonly buildTime: string
+}
+
 /**
  * The settings screen (`SettingsView.vue`) — and, until the training screens
  * land, the app's home: `/` redirects here.
@@ -89,6 +95,17 @@ export class SettingsScreen extends AppScreen {
 
   readonly expectDeleteDialogClosed = vi.defineHelper(async (): Promise<void> => {
     await expect.element(this.deleteDialog).not.toBeInTheDocument()
+  })
+
+  /** The immutable build provenance shown at the bottom of Settings. */
+  readonly expectVersion = vi.defineHelper(async (expected: ExpectedVersion): Promise<void> => {
+    await expect.element(page.getByRole('heading', { name: 'About', level: 2 })).toBeVisible()
+    await expect.element(page.getByText(expected.version, { exact: false })).toBeVisible()
+    await expect.element(page.getByText(expected.commit, { exact: true })).toBeVisible()
+
+    const built = this.container.querySelector('time')
+    if (!(built instanceof HTMLTimeElement)) throw new Error('no build time on the settings page')
+    expect(built.dateTime).toBe(expected.buildTime)
   })
 
   /** On screen and laid out — what a sweep over the rendered page needs. */
