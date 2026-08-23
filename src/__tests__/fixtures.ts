@@ -1,5 +1,6 @@
 import { test } from 'vitest'
 import { resetAppState } from './helpers/reset'
+import { settleAnimations } from './helpers/settle'
 import type { Injection, MountedComposable } from './helpers/withSetup'
 import { withSetup } from './helpers/withSetup'
 import { LogScreen } from './pages/logScreen'
@@ -162,7 +163,7 @@ export const it = test
     return {
       async dark(): Promise<void> {
         document.documentElement.classList.add('dark')
-        await settleTransitions()
+        await settleAnimations()
       },
     }
   })
@@ -211,26 +212,3 @@ export const it = test
       return harness
     }
   })
-
-/**
- * Waits out every CSS transition currently running.
- *
- * Filtered to `CSSTransition` on purpose: `getAnimations()` also returns
- * keyframe animations, and a looping one (a spinner, anything from
- * tw-animate-css) has a `finished` promise that never resolves — awaiting the
- * unfiltered list is a hang waiting for the first infinite animation to ship.
- */
-async function settleTransitions(): Promise<void> {
-  // One frame first: a transition provoked by a class change does not exist
-  // until style is recalculated, so without this there is nothing to await.
-  await new Promise((resolve) => requestAnimationFrame(resolve))
-
-  await Promise.all(
-    document
-      .getAnimations()
-      .filter((animation) => animation instanceof CSSTransition)
-      // A transition cancelled mid-flight rejects; that it is over is all we
-      // are waiting for, and why it ended does not change the answer.
-      .map((animation) => animation.finished.catch(() => undefined)),
-  )
-}

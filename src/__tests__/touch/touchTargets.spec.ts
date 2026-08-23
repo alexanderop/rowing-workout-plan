@@ -1,6 +1,7 @@
 import { describe, expect } from 'vitest'
 import { it } from '../fixtures'
 import { stubInstallPromptAvailable } from '../helpers/installEvent'
+import { settleAnimations } from '../helpers/settle'
 
 /**
  * The 44px floor, asserted where it is actually observable.
@@ -51,12 +52,25 @@ interface Undersized {
 }
 
 /**
- * Every control a user could tap, measured. Zero-size elements are skipped
- * rather than failed: a `display: none` file input and a control inside a
- * closed dialog are not targets, and failing them would make the sweep say
- * something it does not mean.
+ * Every control a user could tap, measured on a settled frame. Zero-size
+ * elements are skipped rather than failed: a `display: none` file input and a
+ * control inside a closed dialog are not targets, and failing them would make
+ * the sweep say something it does not mean.
+ *
+ * The wait for animations lives in here rather than in each sweep because
+ * forgetting it does not fail, it flakes: a sheet measured mid-slide sits
+ * under a transform, and a rect computed through a transform matrix is float
+ * arithmetic. The benchmark sheet's 44px Save button reads 44.00006px on one
+ * frame and 43.99994px on the next, which is a green run on a laptop and a
+ * red one on CI. See helpers/settle.ts.
  */
-function undersizedControls(root: ParentNode): Array<Undersized> {
+async function undersizedControls(root: ParentNode): Promise<Array<Undersized>> {
+  await settleAnimations()
+
+  return measureControls(root)
+}
+
+function measureControls(root: ParentNode): Array<Undersized> {
   return [...root.querySelectorAll(INTERACTIVE)]
     .filter((element) => !EXEMPT.some(({ selector }) => element.matches(selector)))
     .map((element) => ({ element, rect: element.getBoundingClientRect() }))
@@ -105,7 +119,7 @@ describe('touch targets', () => {
   it('clears the floor on the settings screen', async ({ settings }) => {
     await settings.expectReady()
 
-    const undersized = undersizedControls(document.body)
+    const undersized = await undersizedControls(document.body)
     expect(undersized, report(undersized)).toEqual([])
   })
 
@@ -116,7 +130,7 @@ describe('touch targets', () => {
     const screen = await plans({ benchmark2kMs: 424_200, planId: 'pete5k' })
     await screen.expectReady()
 
-    const undersized = undersizedControls(document.body)
+    const undersized = await undersizedControls(document.body)
     expect(undersized, report(undersized)).toEqual([])
   })
 
@@ -124,7 +138,7 @@ describe('touch targets', () => {
     const screen = await plans()
     await screen.enterBenchmark()
 
-    const undersized = undersizedControls(document.body)
+    const undersized = await undersizedControls(document.body)
     expect(undersized, report(undersized)).toEqual([])
   })
 
@@ -135,7 +149,7 @@ describe('touch targets', () => {
     const screen = await planWeek('pete5k', 3, { benchmark2kMs: 424_200 })
     await screen.expectReady(3)
 
-    const undersized = undersizedControls(document.body)
+    const undersized = await undersizedControls(document.body)
     expect(undersized, report(undersized)).toEqual([])
   })
 
@@ -145,7 +159,7 @@ describe('touch targets', () => {
     const screen = await log({ workouts: [{ distanceM: 10_000 }] })
     await screen.expectReady()
 
-    const undersized = undersizedControls(document.body)
+    const undersized = await undersizedControls(document.body)
     expect(undersized, report(undersized)).toEqual([])
   })
 
@@ -153,7 +167,16 @@ describe('touch targets', () => {
     const screen = await log()
     await screen.logRow()
 
-    const undersized = undersizedControls(document.body)
+    const undersized = await undersizedControls(document.body)
+    expect(undersized, report(undersized)).toEqual([])
+  })
+
+  it('clears the floor in the delete-everything confirmation', async ({ settings }) => {
+    // Two full-width buttons stacked in a footer, answered under some
+    // pressure — the one dialog in the app where a mis-tap is expensive.
+    await settings.openDeleteDialog()
+
+    const undersized = await undersizedControls(document.body)
     expect(undersized, report(undersized)).toEqual([])
   })
 
@@ -164,7 +187,7 @@ describe('touch targets', () => {
 
     // A dialog is portalled outside the mounted container, so the sweep is
     // rooted at the document rather than at the screen.
-    const undersized = undersizedControls(document.body)
+    const undersized = await undersizedControls(document.body)
     expect(undersized, report(undersized)).toEqual([])
   })
 })

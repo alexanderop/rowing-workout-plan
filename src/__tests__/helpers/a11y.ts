@@ -1,6 +1,7 @@
 import axe from 'axe-core'
 import { expect, vi } from 'vitest'
 import type { AppScreen } from '../pages/appScreen'
+import { settleAnimations } from './settle'
 
 /**
  * Page-level rules axe only evaluates when the context is the whole
@@ -47,6 +48,12 @@ function report(results: axe.AxeResults) {
  * produced it.
  */
 export const assertNoViolations = vi.defineHelper(async (context: Element): Promise<void> => {
+  // Mid-animation, a dialog is half faded in and half scaled, so
+  // `color-contrast` grades a blend of two palettes and `target-size` a box
+  // that is still moving — a different answer per run. Same reason the theme
+  // fixture waits after switching to dark; see helpers/settle.ts.
+  await settleAnimations()
+
   const results = await axe.run(context, { resultTypes: ['violations'] })
   expect(report(results)).toEqual([])
 })
@@ -65,6 +72,7 @@ export const assertNoViolations = vi.defineHelper(async (context: Element): Prom
 export const assertNoPageLevelViolations = vi.defineHelper(
   async (mounted: AppScreen): Promise<void> => {
     expect(mounted.container.isConnected).toBe(true)
+    await settleAnimations()
 
     const results = await axe.run(document, {
       resultTypes: ['violations'],
