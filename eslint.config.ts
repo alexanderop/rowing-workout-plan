@@ -245,6 +245,7 @@ const NO_APP_STATE = {
 export const CORE = [
   'src/db/converters.ts',
   'src/features/*/catalog.ts',
+  'src/features/*/catalog/*.ts',
   'src/features/*/domain.ts',
   'src/features/*/history.ts',
   'src/features/*/pace.ts',
