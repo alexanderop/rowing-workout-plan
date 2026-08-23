@@ -38,6 +38,13 @@ export default defineConfig({
         display: 'standalone',
       },
       workbox: {
+        // The vision model runtime — the `ai` chunk (see build.rollupOptions)
+        // and the onnxruntime wasm binary it carries — is tens of megabytes
+        // and loaded only when someone scans a monitor photo. Precaching it
+        // would make every fresh install download it up front (and the wasm
+        // alone breaks workbox's 2 MiB precache ceiling); the
+        // StaleWhileRevalidate rule below still caches the chunk on first use.
+        globIgnores: ['**/ai-*.js', '**/ort-*.wasm'],
         runtimeCaching: [
           {
             // `sameOrigin` is load-bearing, not tidiness: a cross-origin
@@ -72,6 +79,23 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Everything behind the lazy `import('@huggingface/transformers')` in
+        // src/lib/monitorPhotoModel.ts lands in one chunk named `ai`, so the
+        // size-limit entry in package.json and the workbox ignore above can
+        // both address it by name instead of chasing hashed module names.
+        manualChunks: (id) =>
+          id.includes('@huggingface/transformers') || id.includes('onnxruntime') ? 'ai' : undefined,
+      },
+    },
+  },
+  // Prebundling would pull the whole model runtime into the dev graph on
+  // startup; it is dynamically imported and esbuild mangles its wasm loading.
+  optimizeDeps: {
+    exclude: ['@huggingface/transformers'],
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('src', import.meta.url)),

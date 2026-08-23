@@ -34,6 +34,7 @@ export default {
     'src/features/*/domain.ts',
     'src/features/*/entry.ts',
     'src/features/*/history.ts',
+    'src/features/*/monitorPhoto.ts',
     'src/features/*/pace.ts',
     'src/features/*/progress.ts',
     'src/features/*/schedule.ts',
