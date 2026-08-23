@@ -190,3 +190,97 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm build
       - run: pnpm size-limit
+
+  required:
+    name: Required CI
+    if: ${{ always() }}
+    needs:
+      - quality
+      - unit
+      - mutation
+      - arch
+      - browser
+      - a11y
+      - touch
+      - e2e
+      - build
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Require every CI job to pass
+        env:
+          RESULTS_JSON: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          jq -e 'all(.[]; .result == "success")' <<<"$RESULTS_JSON"
+
+  release:
+    name: Release verified main commit
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.required.result == 'success'
+    needs: required
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-main
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout verified main commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Ensure releases remain in commit order
+        id: order
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          LATEST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -n 1)
+          if [ -n "$LATEST_TAG" ] && ! git merge-base --is-ancestor "$LATEST_TAG" "$EXPECTED_SHA"; then
+            echo 'release=false' >> "$GITHUB_OUTPUT"
+            echo "Skipping $EXPECTED_SHA because $LATEST_TAG is not its ancestor."
+          else
+            echo 'release=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create conventional release
+        id: changelog
+        if: steps.order.outputs.release == 'true'
+        uses: TriPSs/conventional-changelog-action@ee43def3241429afddab215ba89090cbf64fb45c # v6
+        with:
+          create-summary: 'true'
+          git-push: 'false'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output-file: 'false'
+          skip-commit: 'true'
+          skip-git-pull: 'true'
+          skip-version-file: 'true'
+          tag-prefix: 'v'
+
+      - name: Publish tag for the verified commit
+        if: |
+          steps.order.outputs.release == 'true' &&
+          steps.changelog.outputs.skipped == 'false'
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.changelog.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Refusing invalid release tag: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          TAG_SHA=$(git rev-list -n 1 "$RELEASE_TAG")
+          if [ "$TAG_SHA" != "$EXPECTED_SHA" ]; then
+            echo "Tag $RELEASE_TAG points to $TAG_SHA, expected $EXPECTED_SHA." >&2
+            exit 1
+          fi
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"

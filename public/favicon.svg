@@ -1,7 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="104" fill="#7c3aed" />
-  <path
-    d="M144 128 L256 384 L368 128 L312 128 L256 268 L200 128 Z"
-    fill="#ffffff"
-  />
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- The single source for every icon the app ships. The browser tab uses
+       this file directly; the PWA icons, the Android maskable icon and the
+       iOS touch icon are rasterised from it by pwa-assets.config.ts.
+
+       Two things here are load-bearing, and both are invisible until an
+       install looks wrong:
+
+       1. The tile is full-bleed. The generator composites it edge to edge
+          (padding 0), so a launcher can crop the corners to whatever shape it
+          uses — circle, squircle, rounded square — and still find brand
+          colour underneath. An icon with built-in margin gets that margin
+          twice and floats in the middle of a white blob.
+       2. Everything that must survive the crop — the oars — stays inside the
+          maskable safe zone: the centred circle of 80% diameter, r = 205 at
+          this viewBox. The oars reach r = 194. Move them outward and a
+          circular mask takes the blade tips off.
+
+       Ten sizes come out of these numbers, the smallest being a 16px tab
+       favicon, so nothing here is thinner than the 38-unit shafts. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <!-- Midpoint is #7c3aed — the manifest's theme_color, which is itself
+           the hex mirror of the primary token in src/style.css. -->
+      <stop offset="0" stop-color="#8b5cf6" />
+      <stop offset="1" stop-color="#6d28d9" />
+    </linearGradient>
+    <!-- One oar, blade up, drawn on the vertical: blade tip, the taper into
+         the shaft, then the shaft down to a rounded handle end. The two
+         rotations below cross them at (256, 310), low enough that the blades
+         splay apart instead of overlapping into a single wedge. -->
+    <path
+      id="oar"
+      d="M203 104
+         Q203 81 226 79
+         L286 79
+         Q309 81 309 104
+         L287 208
+         Q283 224 271 227
+         L275 429
+         A19 19 0 0 1 237 429
+         L241 227
+         Q229 224 225 208
+         Z"
+    />
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#tile)" />
+  <g fill="#ffffff">
+    <use href="#oar" transform="rotate(-32 256 310)" />
+    <use href="#oar" transform="rotate(32 256 310)" />
+  </g>
 </svg>

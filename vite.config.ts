@@ -5,11 +5,13 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import { versionPlugin } from './vite-plugins/versionPlugin.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
+    versionPlugin(),
     tailwindcss(),
     // The floating DevTools panel overlays the bottom of small viewports and
     // can swallow taps on the bottom navigation in browser-driven checks.
@@ -24,9 +26,11 @@ export default defineConfig({
         config: true,
       },
       manifest: {
-        name: 'Vue PWA Starter',
-        short_name: 'Starter',
-        description: 'Local-first Vue PWA starter with a complete testing strategy',
+        // `short_name` is the label under the installed icon, where Android
+        // truncates around 12 characters and iOS sooner — keep it one word.
+        name: 'Rowing Plan',
+        short_name: 'Rowing',
+        description: 'Structured erg training plans, paced to your 2k, logged on your device',
         // Hex mirror of --primary in src/style.css (manifests can't use CSS
         // variables) — update this if the primary token's hue ever changes.
         theme_color: '#7c3aed',

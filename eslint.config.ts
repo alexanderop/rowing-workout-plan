@@ -246,6 +246,7 @@ export const CORE = [
   'src/db/converters.ts',
   'src/features/*/catalog.ts',
   'src/features/*/domain.ts',
+  'src/features/*/entry.ts',
   'src/features/*/history.ts',
   'src/features/*/pace.ts',
   'src/features/*/progress.ts',
@@ -265,6 +266,7 @@ export const CORE = [
  * ones allowed to reach for a test double.
  */
 export const PLATFORM_EDGE = [
+  'src/lib/appVersion.ts',
   'src/lib/ergBluetooth.ts',
   'src/lib/ergCapture.ts',
   'src/lib/persistentStorage.ts',

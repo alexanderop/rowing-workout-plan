@@ -14,6 +14,7 @@ import {
 } from '@/components/molecules/dialog'
 import { useDbWrite } from '@/composables/useDbWrite'
 import { useReportFailure } from '@/composables/useReportFailure'
+import { useTouchDevice } from '@/composables/useTouchDevice'
 import type { WorkoutDraft } from '@/db'
 import { logWorkout } from '@/db'
 import { useToastStore } from '@/stores/toast'
@@ -21,6 +22,7 @@ import type { DurationFormatError, DurationRangeError } from '../history'
 import { parseDuration } from '../history'
 import type { PaceRangeError } from '../pace'
 import { formatSplit, splitFor, wattsFromSplit } from '../pace'
+import EntryPad from './EntryPad.vue'
 
 /**
  * Typing a workout in off the monitor — the whole product until Bluetooth
@@ -45,10 +47,12 @@ const open = defineModel<boolean>('open', { default: false })
 
 const { t } = useI18n()
 const toast = useToastStore()
+const isTouchDevice = useTouchDevice()
 
 const distance = ref('')
 const time = ref('')
 const rate = ref('')
+const timePadOpen = ref(false)
 
 // The write edge, with the in-flight guard: a double-tap on Save would
 // otherwise log the row twice. The mutation invalidates both reactivity keys
@@ -63,6 +67,7 @@ watch(open, (isOpen) => {
   distance.value = distanceM === undefined ? '' : String(distanceM)
   time.value = ''
   rate.value = ''
+  timePadOpen.value = false
 })
 
 /**
@@ -97,7 +102,20 @@ const resultText = computed(() =>
 // Only complain about text that has actually been typed — an empty field is
 // not yet a mistake.
 const showInvalidTime = computed(
-  () => time.value.trim() !== '' && !Result.isSuccess(durationMs.value),
+  () =>
+    time.value.trim() !== '' &&
+    !Result.isSuccess(durationMs.value) &&
+    !(isTouchDevice.value && timePadOpen.value),
+)
+
+const invalidTimeMessage = computed(() =>
+  Result.match(durationMs.value, {
+    onFailure: (error) =>
+      error._tag === 'Training.DurationRangeError'
+        ? t('logSheet.invalidTimeRange')
+        : t('logSheet.invalidTime'),
+    onSuccess: () => '',
+  }),
 )
 
 // The distance field said nothing when it was wrong: Save simply stayed
@@ -109,6 +127,19 @@ const canSave = computed(() => resultText.value !== '' && !isWriting.value)
 // The shared failure branch: a structured log for the developer, a toast for
 // the user — see useReportFailure for why it is an Effect.
 const reportFailure = useReportFailure('log workout')
+
+function showTimePad(): void {
+  timePadOpen.value = true
+}
+
+function hideTimePad(): void {
+  timePadOpen.value = false
+}
+
+function advanceFromTime(): void {
+  hideTimePad()
+  document.getElementById('log-rate')?.focus({ preventScroll: true })
+}
 
 /**
  * The row as the repository takes it. Built from the same `Result`s the live
@@ -202,6 +233,7 @@ async function save(): Promise<void> {
             :aria-describedby="showInvalidDistance ? 'log-distance-error' : undefined"
             :aria-invalid="showInvalidDistance"
             autocomplete="off"
+            @focus="hideTimePad"
           />
           <p v-if="showInvalidDistance" id="log-distance-error" class="text-sm text-destructive">
             {{ t('logSheet.invalidDistance') }}
@@ -213,13 +245,16 @@ async function save(): Promise<void> {
           <AtomInput
             id="log-time"
             v-model="time"
+            :inputmode="isTouchDevice ? 'none' : undefined"
             :placeholder="t('logSheet.timePlaceholder')"
             :aria-describedby="showInvalidTime ? 'log-time-error' : undefined"
             :aria-invalid="showInvalidTime"
             autocomplete="off"
+            @focus="showTimePad"
+            @blur="hideTimePad"
           />
           <p v-if="showInvalidTime" id="log-time-error" class="text-sm text-destructive">
-            {{ t('logSheet.invalidTime') }}
+            {{ invalidTimeMessage }}
           </p>
         </div>
 
@@ -234,8 +269,19 @@ async function save(): Promise<void> {
             inputmode="numeric"
             :placeholder="t('logSheet.ratePlaceholder')"
             autocomplete="off"
+            @focus="hideTimePad"
           />
         </div>
+
+        <EntryPad
+          v-if="isTouchDevice && timePadOpen"
+          v-model="time"
+          kind="duration"
+          :field-label="t('logSheet.time')"
+          :action-label="t('common.buttons.next')"
+          extra-key="00"
+          @advance="advanceFromTime"
+        />
 
         <!-- The derived half, live. Absent rather than zeroed while the two
              fields are incomplete: a split of 0:00 is a claim, a blank is not. -->

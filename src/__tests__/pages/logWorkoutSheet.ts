@@ -35,6 +35,14 @@ export class LogWorkoutSheet {
     return page.getByRole('button', { name: 'Save' })
   }
 
+  get timePad(): Locator {
+    return page.getByRole('group', { name: 'Number pad for Time' })
+  }
+
+  timeKey(key: string): Locator {
+    return this.timePad.getByRole('button', { name: key })
+  }
+
   /** Replace a field's contents — the sheet prefills, so this clears first. */
   private async retype(field: Locator, value: string): Promise<void> {
     await field.clear()
@@ -49,6 +57,15 @@ export class LogWorkoutSheet {
 
   async submit(): Promise<void> {
     await this.save.click()
+  }
+
+  async openTimePad(): Promise<void> {
+    await this.time.click()
+    await expect.element(this.timePad).toBeVisible()
+  }
+
+  async pressTimeKeys(...keys: Array<string>): Promise<void> {
+    for (const key of keys) await this.timeKey(key).click()
   }
 
   readonly expectOpen = vi.defineHelper(async (name: 'Log a row' | 'Log this session') => {
@@ -70,5 +87,13 @@ export class LogWorkoutSheet {
 
   readonly expectSaveDisabled = vi.defineHelper(async (): Promise<void> => {
     await expect.element(this.save).toBeDisabled()
+  })
+
+  readonly expectTime = vi.defineHelper(async (value: string): Promise<void> => {
+    await expect.element(this.time).toHaveValue(value)
+  })
+
+  readonly expectTimePadAbsent = vi.defineHelper(async (): Promise<void> => {
+    await expect.element(this.timePad).not.toBeInTheDocument()
   })
 }

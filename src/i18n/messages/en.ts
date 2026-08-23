@@ -10,11 +10,16 @@ export default {
     buttons: {
       cancel: 'Cancel',
       close: 'Close',
+      next: 'Next',
       save: 'Save',
     },
     aria: {
       goBack: 'Go back',
     },
+  },
+  entryPad: {
+    label: 'Number pad for {field}',
+    backspace: 'Backspace',
   },
   plans: {
     title: 'Plans',
@@ -183,6 +188,7 @@ export default {
     result: '{split} /500m · {watts} W',
     invalidDistance: 'Enter the distance in whole metres',
     invalidTime: 'Enter a time like 43:07',
+    invalidTimeRange: 'Time must be greater than zero',
     toast: {
       saved: 'Workout logged',
       saveFailed: 'That workout could not be saved',
@@ -243,6 +249,12 @@ export default {
         keeps: 'Your appearance and language settings stay as they are.',
         confirm: 'Yes, delete everything',
       },
+    },
+    about: {
+      title: 'About',
+      version: 'Version',
+      commit: 'Commit',
+      buildTime: 'Built',
     },
   },
   pwa: {

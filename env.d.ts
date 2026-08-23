@@ -3,6 +3,12 @@
 /// <reference types="vite-plugin-pwa/info" />
 
 interface ImportMetaEnv {
+  /** Package version and Git provenance injected by versionPlugin. */
+  readonly APP_VERSION: string
+  readonly APP_TAG: string | null
+  readonly APP_COMMIT: string
+  readonly APP_BUILD_TIME: string
+
   /**
    * OTLP base URL for development telemetry export — see
    * `src/lib/observability.ts` and `.env.example`. Unset means no export.
