@@ -5,11 +5,12 @@ import { useI18n } from 'vue-i18n'
 import { formatSplit } from './pace'
 import { steadyBandText } from './targets'
 import type { SessionTarget } from './targets'
-import type { PlanSession } from './types'
+import type { PlanSession, SessionKind } from './types'
 
 /**
  * How a session's target reads: a **band** for steady work, a **number** for
- * everything else.
+ * everything else. A `timedSteady` row is steady work — the clock bounding it
+ * instead of the monitor changes nothing about the zone it sits in.
  *
  * Aerobic work is a zone to sit in and an interval is a pace to hit, and
  * printing one as the other is how a steady row turns into a race. That rule
@@ -26,6 +27,15 @@ interface UseTargetTextReturn {
   targetText: ComputedRef<(session: PlanSession, target: SessionTarget | null) => string>
 }
 
+/**
+ * The kinds quoted as a zone rather than a number.
+ *
+ * A set, not a second `===`: the list has grown once already and the next
+ * kind to join it should be one entry, not one more branch to keep in step
+ * with `targets.ts`.
+ */
+const BAND_KINDS: ReadonlySet<SessionKind> = new Set(['steady', 'timedSteady'])
+
 export function useTargetText(): UseTargetTextReturn {
   const { t } = useI18n()
 
@@ -40,7 +50,7 @@ export function useTargetText(): UseTargetTextReturn {
   return {
     targetText: computed(() => (session, target) => {
       if (target === null) return ''
-      if (session.kind === 'steady') return band(target.splitMs)
+      if (BAND_KINDS.has(session.kind)) return band(target.splitMs)
 
       return Result.getOrElse(formatSplit(target.splitMs), () => '')
     }),

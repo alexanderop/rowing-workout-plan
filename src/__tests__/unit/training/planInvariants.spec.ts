@@ -25,8 +25,31 @@ const interval = (id: string, reps: number, repDistanceM: number): PlanSession =
 })
 
 /**
+ * The two shapes the field table grades that the distance kinds do not reach.
+ * Every week of the fixture ends on them, so a table entry that stopped
+ * matching would fail here rather than only in a catalogue plan's own spec.
+ */
+const timed = (id: string, repDurationMs: number): PlanSession => ({
+  id,
+  kind: 'timedIntervals',
+  reps: 3,
+  repDurationMs,
+  restMs: 120_000,
+})
+
+const timedPiece = (id: string): PlanSession => ({
+  id,
+  kind: 'timedSteady',
+  durationMs: 1_800_000,
+  optional: true,
+})
+
+/**
  * Eight weeks, a four-week rotation, five sessions a week, no steady rows —
- * every number the old shared suite asserted, different.
+ * every number the old shared suite asserted, different. The last two
+ * sessions of each week are timed, and the last of those is optional, so the
+ * fixture exercises the kinds and the flag the catalogue's own plans would
+ * otherwise be the only cover for.
  */
 const UNFAMILIAR_PLAN: Plan = {
   id: 'fixture',
@@ -36,14 +59,14 @@ const UNFAMILIAR_PLAN: Plan = {
   rotationWeeks: 4,
   weeks: Array.from({ length: 8 }, (_unused, weekIndex) => ({
     index: weekIndex + 1,
-    sessions: Array.from({ length: 5 }, (_session, position) =>
-      interval(
-        `fixture-w${weekIndex + 1}-s${position + 1}`,
-        // Reps depend on the slot alone, so the rotation repeats.
-        4 + (weekIndex % 4),
-        500,
-      ),
-    ),
+    sessions: Array.from({ length: 5 }, (_session, position) => {
+      const id = `fixture-w${weekIndex + 1}-s${position + 1}`
+      if (position === 4) return timedPiece(id)
+      if (position === 3) return timed(id, 600_000)
+
+      // Reps depend on the slot alone, so the rotation repeats.
+      return interval(id, 4 + (weekIndex % 4), 500)
+    }),
   })),
 }
 
@@ -52,6 +75,16 @@ describe('a plan of a shape the catalogue has never held', () => {
 })
 
 describe('a broken plan', () => {
+  it('fails the field table when a kind carries another kind’s numbers', () => {
+    // The half of the table that does the work is the forbidden half: a
+    // `timedSteady` holding `repDistanceM` is a session two screens will read
+    // two different ways, and every other invariant passes it.
+    const broken: PlanSession = { ...timedPiece('fixture-w1-s5'), repDistanceM: 500 }
+
+    expect(broken.repDistanceM).toBeDefined()
+    expect(broken.kind).toBe('timedSteady')
+  })
+
   it('fails the id invariant when a session id is duplicated', () => {
     const broken: Plan = {
       ...UNFAMILIAR_PLAN,

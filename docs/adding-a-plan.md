@@ -17,6 +17,13 @@ this file adds a plan of a shape the catalogue has never held and expects
 `pnpm check` to go green without `schedule.ts`, `targets.ts` or a view being
 opened.
 
+The claim holds for a plan written in the vocabulary below. `peteBeginner` was
+not one — it needed timed sessions and optional ones, neither of which
+existed — and it cost two session kinds, a flag, and edits to `session.ts`,
+`schedule.ts`, `progress.ts` and four components. That is the price of a new
+kind, and it is the reason to check first whether the session you want is an
+existing kind with different numbers.
+
 ## The one file
 
 ```ts
@@ -94,14 +101,15 @@ surface.
 
 A plan says **what to row**. It does not say how fast.
 
-| Decision                         | Owner                                       |
-| -------------------------------- | ------------------------------------------- |
-| Which sessions, in what order    | the plan file                               |
-| How many weeks, how long a cycle | the plan file (`weeks`, `rotationWeeks`)    |
-| The target split for a session   | `targets.ts` (`TARGET_OFFSETS_MS`)          |
-| The stroke-rate window           | `targets.ts` (`RATE_RANGES`)                |
-| How a session reads as a sentence| `session.ts`                                |
-| Where a rower is in the plan     | `schedule.ts`                               |
+| Decision                          | Owner                                    |
+| --------------------------------- | ---------------------------------------- |
+| Which sessions, in what order     | the plan file                            |
+| Which of them are optional        | the plan file (`optional(…)`)            |
+| How many weeks, how long a cycle  | the plan file (`weeks`, `rotationWeeks`) |
+| The target split for a session    | `targets.ts` (`TARGET_OFFSETS_MS`)       |
+| The stroke-rate window            | `targets.ts` (`RATE_RANGES`)             |
+| How a session reads as a sentence | `session.ts`                             |
+| Where a rower is in the plan      | `schedule.ts`                            |
 
 The offset and rate tables are **one per app, not one per plan**: every plan in
 the catalogue is paced from the same 2k model, and per-plan pacing is a
@@ -123,6 +131,30 @@ completed workout in the log stores that id and nothing else. So:
 This applies to a plan that has shipped. While you are still writing one,
 reorder freely.
 
+## Optional sessions
+
+`optional(session)` marks a session the plan offers without requiring it —
+Pete's `[square brackets]`. It is one-way: absent means required, and nothing
+writes `false`, so no reader has to think about a third state.
+
+Three things read the flag, and between them they are what "optional" means:
+
+- `schedule.ts` skips optional sessions when it picks what is **next**, and
+  leaves them out of `done`/`total`. Without that, an optional day nobody
+  meant to row becomes the session Today offers forever and the progress bar
+  freezes behind it. Rowing one is still logged and still ticks in the week
+  list; it just moves nothing.
+- `progress.ts` counts them as `optionalPerWeek`, apart from the weekly
+  commitment. A plan of three core sessions plus two you might pick up is a
+  three-a-week plan, and a card saying "5 / week" turns its own invitation
+  into a reason not to start.
+- `SessionRow.vue` badges them.
+
+**Append them; never interleave.** The ids are positional, so an optional
+session placed in front of a core one re-points every workout logged against
+everything after it. `peteBeginner` puts its two at positions 4 and 5 of every
+week for exactly this reason, and its spec pins that.
+
 ## Where the numbers go
 
 Two kinds of assertion, and the difference decides which file yours goes in.
@@ -130,10 +162,16 @@ Two kinds of assertion, and the difference decides which file yours goes in.
 **Invariants** — true of *any* plan — are inherited. Registering a plan in
 `PLANS` puts it through `assertPlanInvariants`
 (`src/__tests__/unit/training/planInvariants.ts`) automatically: contiguous
-week indices, unique positional ids, real kinds, positive rep structure on
-intervals, a floor on every steady row, and the rotation repeating. You write
-nothing for these, and you do not edit the helper to make your plan pass — a
-plan that fails an invariant is wrong.
+week indices, unique positional ids, real kinds, more than one rep on every
+interval, the rotation repeating, and — from `REQUIRED_FIELDS`, one row per
+kind — exactly the numbers that kind carries, all positive, and none belonging
+to another kind. You write nothing for these, and you do not edit the helper to
+make your plan pass — a plan that fails an invariant is wrong.
+
+Adding a *kind* is the one case that does edit it: a new kind is a new row in
+`REQUIRED_FIELDS`, and a new field on `PlanSession` is a new column in
+`ALL_FIELDS`. That is not making a plan pass, it is telling the table what the
+kind is.
 
 **Transcription pins** — the literal numbers — go in a file of your own,
 `src/__tests__/unit/training/pete5kBase.spec.ts`, beside the plans that already
@@ -167,14 +205,34 @@ Almost never the right answer. A new kind touches, at minimum:
 
 - `SESSION_KINDS` in `types.ts` — the runtime array the union is derived from.
 - `TARGET_OFFSETS_MS` and `RATE_RANGES` in `targets.ts` — how fast, and at
-  what rate. Neither has a default.
-- `session.ts` — which of the three sentence styles it is written as.
-- `plans.kind.*` in `en.ts` and `de.ts`.
+  what rate. Neither has a default, and both are `satisfies Record<SessionKind,
+  …>`, so the compiler asks.
+- `session.ts` — which of the five sentence styles it is written as, and
+  `REQUIRED_FIELDS` in `planInvariants.ts`, which is the same question asked
+  of the data.
+- `plans.kind.*` and `plans.session.*` in `en.ts` and `de.ts`, plus the
+  `SessionRow.vue` entry in `INTERPOLATED` (`i18nKeys.test.ts`), since both
+  keys are built at runtime.
 
 And then the question of whether the new kind is rotation-shifted
 (`isRotationShifted`), which is a pacing decision, not a catalogue one. Before
 adding one, check whether the session you want is an existing kind with
 different numbers. It usually is.
+
+`timedSteady` and `timedIntervals` are the two that were not. Nothing in the
+catalogue could express "30′" or "3 × 10′ / 2′ rest" — every other kind is
+prescribed in metres — and from week 12 the beginner plan makes one of them a
+core session every week. Both are named for their **pacing** rather than by
+symmetry with `distancePiece`: a `distancePiece` is a hard test piece, a timed
+session is aerobic work the clock happens to bound (Pete's own "Group 1"), and
+neither is rotation-shifted for the same reason `steady` is not.
+
+A timed session states no distance, which is the part that reaches beyond
+`targets.ts`. `sessionDistanceM` returns zero for one — correctly, since
+"roughly 23 km" is the plan speaking — so `sessionWorkMs`/`weekWorkMs` carry
+the time, the week header quotes it beside the metres, and
+`sessionDistanceEstimateM` derives metres off the session's own target for the
+screens with a metres field on them.
 
 ## The drill
 
@@ -193,10 +251,18 @@ the new plan (the test count goes up without a spec being written), and
 If any of that fails, the failure is in the code or in this file, not in the
 plan.
 
-## Known limit
+## Known limits
 
 `ROTATION_STEP_MS` in `targets.ts` takes 100 ms off the target for each
 rotation past the first, with no floor. That is fine for four rotations and
 absurd for twelve. A plan long enough to reach rotation 12 is expressible
 today and would be paced nonsense; the first plan that actually wants one is
 the change that should decide whether the arithmetic clamps.
+
+**There is no steady-paced distance-interval kind.** A distance interval is
+priced as hard work whatever its rest, so `peteBeginner`'s week-4 optional
+`2 × 2500m / 2min` — endurance work in the source, at roughly 2k+20s — is a
+`shortRest` paced at 2k+6s. One session in 120 did not justify an eighth kind.
+It is pinned in `peteBeginner.spec.ts` so it cannot be quietly "fixed" into a
+claim the source does not make; the plan that needs a second one of these is
+the change that should add the kind.

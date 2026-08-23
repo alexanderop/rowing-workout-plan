@@ -1,16 +1,17 @@
 import { describe, expect, it } from '@effect/vitest'
 import { Result } from 'effect'
 
-import { pete5k, pete5kLite } from '@/features/training/catalog'
+import { pete5k, pete5kLite, peteBeginner } from '@/features/training/catalog'
 import {
   isRotationEnd,
   nextSession,
   positionFor,
+  requiredSessionCount,
   rotationFor,
   rotationNote,
   WeekRangeError,
 } from '@/features/training/schedule'
-import type { Plan } from '@/features/training/types'
+import type { Plan, PlanWeek } from '@/features/training/types'
 
 /**
  * Locating a rower in a plan, from a set of completed session ids that a real
@@ -31,6 +32,9 @@ const firstIds = (plan: Plan, count: number): Array<string> =>
   plan.weeks.flatMap((week) => week.sessions.map((session) => session.id)).slice(0, count)
 
 const allIds = (plan: Plan): Array<string> => firstIds(plan, Number.MAX_SAFE_INTEGER)
+
+/** The sessions of a week that `positionFor` counts, in order. */
+const requiredOf = (week: PlanWeek) => week.sessions.filter((session) => session.optional !== true)
 
 const EMPTY_PLAN: Plan = {
   id: 'empty',
@@ -167,13 +171,108 @@ describe('nextSession', () => {
   it('agrees with positionFor at every point in the plan', () => {
     // The two scan independently, so this is the assertion that keeps them
     // from drifting apart into two different answers to the same question.
+    //
+    // `sessionIndex` counts required sessions, so it indexes the *required*
+    // list — the two coincide for pete5k, which has no optional sessions, and
+    // the interleaved plan below is where the difference is actually proven.
     for (const done of [0, 1, 5, 6, 13, 40, 70]) {
       const completed = firstIds(pete5k, done)
       const { weekIndex, sessionIndex } = positionFor(pete5k, completed)
-      const week = pete5k.weeks[weekIndex - 1]
+      const required = requiredOf(pete5k.weeks[weekIndex - 1])
 
-      expect(nextSession(pete5k, completed), `after ${done}`).toBe(week.sessions[sessionIndex - 1])
+      expect(nextSession(pete5k, completed), `after ${done}`).toBe(required[sessionIndex - 1])
     }
+  })
+})
+
+describe('optional sessions', () => {
+  /**
+   * The beginner plan is the shape the flag exists for: five sessions printed
+   * every week, three of them asked for. Everything here would pass trivially
+   * against a plan with no optional sessions, which is why it is asserted
+   * against the one that has 48.
+   */
+  const WEEK_ONE = peteBeginner.weeks[0]
+  const core = WEEK_ONE.sessions.slice(0, 3).map((session) => session.id)
+
+  it('does not count toward the plan', () => {
+    // 24 weeks × 3, not × 5. The bar is out of what the plan asks for, so
+    // finishing what it asks for finishes it.
+    expect(positionFor(peteBeginner, []).total).toBe(72)
+  })
+
+  it('is not what comes next, however long it goes unrowed', () => {
+    const next = nextSession(peteBeginner, core)
+
+    expect(next?.id).toBe('pete-beginner-w2-s1')
+    expect(next?.optional).toBeUndefined()
+  })
+
+  it('does not stall the plan it sits at the end of', () => {
+    // The failure this guards: an optional day nobody meant to row becoming
+    // the session Today offers forever, with the bar frozen behind it.
+    const position = positionFor(peteBeginner, core)
+
+    expect(position.weekIndex).toBe(2)
+    expect(position.sessionIndex).toBe(1)
+    expect(position.done).toBe(3)
+  })
+
+  it('moves nothing when it is rowed', () => {
+    // Logged, ticked in the week list, and worth no progress. That is what
+    // optional means — the alternative is a plan you can finish early by
+    // doing extra work.
+    const withExtras = positionFor(peteBeginner, [...core, 'pete-beginner-w1-s4'])
+
+    expect(withExtras.done).toBe(3)
+    expect(withExtras.total).toBe(72)
+  })
+
+  it('counts a week by what it asks for, not by what it prints', () => {
+    // The other half of "Session 1 of 3". An ordinal counted over required
+    // sessions and a total counted over all of them is a counter that stops
+    // at 3 and claims to be going to 5.
+    expect(requiredSessionCount(WEEK_ONE)).toBe(3)
+    expect(WEEK_ONE.sessions.length).toBe(5)
+    expect(requiredSessionCount(pete5k.weeks[0])).toBe(pete5k.weeks[0].sessions.length)
+  })
+
+  it('numbers required sessions in order even when an optional one splits them', () => {
+    // Every plan in the catalogue appends its optional sessions, so a slot in
+    // `week.sessions` happens to be the right ordinal — and would stop being
+    // one the day a plan does not. Asserted against a plan that already does
+    // not, so the fix cannot rot back into an array index.
+    const interleaved: Plan = {
+      ...pete5kLite,
+      id: 'interleaved',
+      weeks: [
+        {
+          index: 1,
+          sessions: [
+            { id: 'interleaved-w1-s1', kind: 'steady', minDistanceM: 10_000 },
+            { id: 'interleaved-w1-s2', kind: 'steady', minDistanceM: 10_000, optional: true },
+            { id: 'interleaved-w1-s3', kind: 'steady', minDistanceM: 10_000 },
+          ],
+        },
+      ],
+    }
+    const position = positionFor(interleaved, ['interleaved-w1-s1'])
+
+    // The second *required* session, which sits third in the printed week.
+    expect(position.sessionIndex).toBe(2)
+    expect(position.total).toBe(2)
+    expect(nextSession(interleaved, ['interleaved-w1-s1'])?.id).toBe('interleaved-w1-s3')
+  })
+
+  it('reaches the end when every required session is done', () => {
+    const required = peteBeginner.weeks.flatMap((week) =>
+      week.sessions.filter((session) => session.optional !== true).map((session) => session.id),
+    )
+    const position = positionFor(peteBeginner, required)
+
+    expect(position.done).toBe(position.total)
+    expect(position.weekIndex).toBe(24)
+    expect(nextSession(peteBeginner, required)).toBeNull()
   })
 })
 

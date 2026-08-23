@@ -9,7 +9,7 @@ import { benchmarkAtom, completedSessionsAtom } from '@/features/training/atoms'
 import { PLANS } from '@/features/training/catalog'
 import SessionRow from '@/features/training/components/SessionRow.vue'
 import WeekStrip from '@/features/training/components/WeekStrip.vue'
-import { kilometres, weekDistanceM } from '@/features/training/session'
+import { formatDuration, kilometres, weekDistanceM, weekWorkMs } from '@/features/training/session'
 import { rotationFor, rotationNote } from '@/features/training/schedule'
 import { targetFor } from '@/features/training/targets'
 import type { SessionTarget } from '@/features/training/targets'
@@ -69,13 +69,27 @@ const rows = computed(() =>
   })),
 )
 
-const summary = computed(() =>
-  t('plans.week.summary', {
+/**
+ * The header line, with the timed work quoted beside the metres when a week
+ * has any.
+ *
+ * A timed session prescribes no distance, so `weekDistanceM` leaves it out —
+ * correctly, since "roughly 23 km" is the plan speaking. Adding a split-
+ * derived estimate into that number would make the plan appear to say
+ * something it does not, so the time is printed next to it instead.
+ */
+const summary = computed(() => {
+  const current = week.value
+  const workMs = current === null ? 0 : weekWorkMs(current)
+  const params = {
     sessions: rows.value.length,
-    km: kilometres(week.value === null ? 0 : weekDistanceM(week.value)),
+    km: kilometres(current === null ? 0 : weekDistanceM(current)),
+    time: formatDuration(workMs),
     done: rows.value.filter((row) => row.done).length,
-  }),
-)
+  }
+
+  return workMs === 0 ? t('plans.week.summary', params) : t('plans.week.summaryWithTime', params)
+})
 
 /**
  * Where this week sits in the three-week cycle, as the sentence a rower needs

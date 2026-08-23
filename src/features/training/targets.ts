@@ -47,6 +47,14 @@ const BENCHMARK_DISTANCE_M = 2000
  *   chosen, because it is the only one whose distance varies. This entry is
  *   the flat part, added on top of the distance scaling below; leave it at
  *   zero unless every hard distance piece should move together.
+ * - `timedSteady` +20s — `steady`'s offset exactly, and deliberately the same
+ *   number rather than a number that happens to match: a 30′ row is the
+ *   distance row with a clock instead of a monitor, and Pete prescribes it at
+ *   the pace of the 10k it stands in for.
+ * - `timedIntervals` +18s — two seconds faster than the continuous piece, and
+ *   the rests are what buy that. Pete's note on `3 × 10min` is the source:
+ *   "the same pace as your 10k this week, and a little faster on the final
+ *   one".
  */
 export const TARGET_OFFSETS_MS = {
   steady: 20_000,
@@ -54,6 +62,8 @@ export const TARGET_OFFSETS_MS = {
   longRest: 4_000,
   pacedTwoK: 1_000,
   distancePiece: 0,
+  timedSteady: 20_000,
+  timedIntervals: 18_000,
 } satisfies Record<SessionKind, number>
 
 /**
@@ -76,6 +86,8 @@ const RATE_RANGES = {
   longRest: { low: 26, high: 28 },
   pacedTwoK: { low: 28, high: 30 },
   distancePiece: { low: 24, high: 26 },
+  timedSteady: { low: 22, high: 25 },
+  timedIntervals: { low: 22, high: 26 },
 } satisfies Record<SessionKind, RateRange>
 
 /**
@@ -91,7 +103,8 @@ const RATE_RANGES = {
  *
  * `pacedTwoK` is deliberately not shifted: its job is to measure you, and a
  * target that walks itself faster every rotation would be measuring its own
- * assumptions. `steady` is not shifted because steady is not a target to beat.
+ * assumptions. `steady` is not shifted because steady is not a target to beat,
+ * and the two timed kinds are aerobic work for the same reason.
  */
 const ROTATION_STEP_MS = 100
 const ROTATION_SHIFTED_KINDS: ReadonlySet<SessionKind> = new Set(['shortRest', 'longRest'])

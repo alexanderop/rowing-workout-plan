@@ -32,6 +32,13 @@ export default {
     loadError: 'Your plans could not be loaded',
     weeks: '{count} weeks',
     perWeek: '{count} / week',
+    // The [square-bracketed] extras, as the second badge on a browse card.
+    // Only printed by a plan that has any — "0 optional" is not a fact worth
+    // the width.
+    perWeekOptional: '{count} optional',
+    // The badge on a session the plan offers without requiring it. A word
+    // rather than an icon: "you may skip this" is not a thing a glyph says.
+    optional: 'Optional',
     active: {
       heading: 'Active plan',
       progress: 'Week {week} of {weeks} · {done} of {total} sessions done',
@@ -57,6 +64,9 @@ export default {
       pete5kLite: {
         description: 'The same three-week rotations at three sessions a week.',
       },
+      peteBeginner: {
+        description: 'Twenty-four weeks from a first 5k to twelve, three core sessions a week.',
+      },
     },
     toast: {
       enrolled: 'You are on {name}',
@@ -73,6 +83,9 @@ export default {
       // what it is), but it stays in the catalogue so a translator can put
       // words around it without a code change.
       piece: '{distance}',
+      // The clock bounds these, not the monitor, so neither names a distance.
+      time: '{duration}',
+      timeIntervals: '{reps} × {duration} / {rest} rest',
     },
     // The kind, as the line under the title. One per SessionKind — the
     // i18nKeys arch test holds this list to exactly that set.
@@ -82,6 +95,8 @@ export default {
       longRest: 'Long rest intervals',
       pacedTwoK: 'Paced 2k, easy either side',
       distancePiece: 'Hard distance piece',
+      timedSteady: 'Aerobic time piece',
+      timedIntervals: 'Aerobic time intervals',
     },
     // Where a week sits in its plan's cycle. The plan's ending wins over the
     // rotation's — see `rotationNote`. No sentence here names a position by
@@ -105,6 +120,11 @@ export default {
     week: {
       title: 'Week {week}',
       summary: '{sessions} sessions · roughly {km} km · {done} done',
+      // A week holding timed work, whose metres the plan does not state. The
+      // time is quoted beside the distance rather than folded into it as an
+      // estimate: "roughly 23 km" is the plan speaking, and a guess added to
+      // it would not be.
+      summaryWithTime: '{sessions} sessions · roughly {km} km + {time} · {done} done',
       strip: 'Weeks of {name}',
       open: 'Week {week}',
       notFound: 'That week is not part of this plan',

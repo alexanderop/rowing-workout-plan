@@ -136,7 +136,7 @@ export function definePlan(spec: PlanSpec): Plan {
 }
 
 /**
- * The five session kinds, as the sentences a plan file is written in.
+ * The seven session kinds, as the sentences a plan file is written in.
  *
  * `steady(10_000)` says what `{ kind: 'steady', minDistanceM: 10_000 }` says,
  * and says it in the vocabulary the plan was published in. Which fields a kind
@@ -166,3 +166,27 @@ export const pacedTwoK = (reps: number, repDistanceM: number, restMs: number): S
 })
 
 export const piece = (distanceM: number): SessionBody => ({ kind: 'distancePiece', distanceM })
+
+export const timedSteady = (durationMs: number): SessionBody => ({
+  kind: 'timedSteady',
+  durationMs,
+})
+
+export const timedIntervals = (
+  reps: number,
+  repDurationMs: number,
+  restMs: number,
+): SessionBody => ({ kind: 'timedIntervals', reps, repDurationMs, restMs })
+
+/**
+ * Pete's [square brackets]: a session the week offers without requiring it.
+ *
+ * A wrapper rather than a flag on each of the seven constructors, so a plan
+ * file reads the way the published page does — `optional(timedSteady(20 *
+ * MINUTE_MS))` — and so a kind added later is optional-able for free.
+ *
+ * Optional sessions are *appended* to a week, never interleaved: the ids are
+ * positional, so putting one in front of a core session re-points every
+ * workout logged against everything after it.
+ */
+export const optional = (body: SessionBody): SessionBody => ({ ...body, optional: true })

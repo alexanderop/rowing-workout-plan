@@ -58,6 +58,7 @@ const wattsText = computed(() =>
             t(`plans.session.${description.style}`, {
               reps: description.reps,
               distance: description.distance,
+              duration: description.duration,
               rest: description.rest,
             })
           }}

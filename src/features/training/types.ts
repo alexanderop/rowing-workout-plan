@@ -16,10 +16,10 @@ import type { MessageSchema } from '@/i18n/types'
  */
 
 /**
- * The five shapes a session can take, as data as well as a type.
+ * The seven shapes a session can take, as data as well as a type.
  *
  * The runtime array is the declaration and the union is derived from it, so
- * there is exactly one place a sixth kind gets added. A hand-written union
+ * there is exactly one place an eighth kind gets added. A hand-written union
  * beside a hand-written array is the version of this that drifts.
  *
  * - `steady` — aerobic distance, `minDistanceM` and no upper bound ("10k+").
@@ -31,6 +31,15 @@ import type { MessageSchema } from '@/i18n/types'
  *   session is one, because pacing it as three flat-out 2ks is the single
  *   most damaging way to get this plan wrong.
  * - `distancePiece` — one hard continuous piece of a stated `distanceM`.
+ * - `timedSteady` — one continuous piece of a stated `durationMs` ("30′").
+ * - `timedIntervals` — timed reps split by rest ("3 × 10′ / 2′ rest").
+ *
+ * The last two are named for their *pacing*, not by symmetry with
+ * `distancePiece`. A `distancePiece` is a hard test piece; a timed session is
+ * aerobic work the clock happens to bound instead of the monitor — Pete's own
+ * "Group 1" — and a `timePiece` sitting beside `distancePiece` would invite
+ * exactly the wrong target. The names carry the intensity because
+ * `targets.ts` keys off the kind and nothing else.
  */
 export const SESSION_KINDS = [
   'steady',
@@ -38,6 +47,8 @@ export const SESSION_KINDS = [
   'longRest',
   'pacedTwoK',
   'distancePiece',
+  'timedSteady',
+  'timedIntervals',
 ] as const
 
 export type SessionKind = (typeof SESSION_KINDS)[number]
@@ -68,6 +79,20 @@ export interface PlanSession {
   readonly distanceM?: number
   /** `steady` only: the floor, with no ceiling — row further if you have the time. */
   readonly minDistanceM?: number
+  /** `timedSteady` only: the length of the piece. */
+  readonly durationMs?: number
+  /** `timedIntervals` only: the length of one rep. */
+  readonly repDurationMs?: number
+  /**
+   * A session the plan offers without requiring it — Pete's [square brackets].
+   *
+   * One-way on purpose: absent means required, and nothing writes `false`. A
+   * flag that can be present-and-false is a third state every reader has to
+   * think about to reach the same answer. `schedule.ts` skips these when it
+   * decides what is next, and `progress.ts` leaves them out of the weekly
+   * commitment; everything else lists them like any other session.
+   */
+  readonly optional?: boolean
 }
 
 /** A week of the plan. `index` is 1-based, because every screen says "Week 3". */

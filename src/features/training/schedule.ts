@@ -1,6 +1,6 @@
 import { Result, Schema } from 'effect'
 
-import type { Plan, PlanSession } from './types'
+import type { Plan, PlanSession, PlanWeek } from './types'
 
 /**
  * Where you are in a plan, and what the rotation means at that point.
@@ -40,12 +40,44 @@ export class WeekRangeError extends Schema.TaggedError<WeekRangeError>()(
 ) {}
 
 /**
+ * A session the plan requires. Pete's [square brackets] are not.
+ *
+ * The one predicate the whole optional story rests on, written once so
+ * "required" cannot mean two things three functions apart.
+ */
+const isRequired = (session: PlanSession): boolean => session.optional !== true
+
+/**
+ * How many sessions a week asks for — the "of 3" a screen prints beside
+ * {@link PlanPosition.sessionIndex}, counted the same way that index is.
+ *
+ * Exported so no screen has to re-derive "required" from the flag and get the
+ * pair out of step: an ordinal counted one way against a total counted the
+ * other is a counter that never reaches its own end.
+ */
+export function requiredSessionCount(week: PlanWeek): number {
+  return week.sessions.filter(isRequired).length
+}
+
+/**
  * Where the next session sits, and how much of the plan is behind it.
  *
  * `weekIndex` and `sessionIndex` are 1-based, matching every screen that says
  * "Week 3 · Session 2 of 6". `done` counts the plan's sessions that are
  * complete, which is not the same as `sessionIndex - 1`: skip session 2 and
  * come back to it and the two disagree, correctly.
+ *
+ * **Optional sessions are not counted and not pointed at.** A plan whose
+ * weeks offer five sessions and require three is a three-a-week plan, so its
+ * progress bar is out of three a week and its "next" is the next *required*
+ * session — otherwise an optional day nobody meant to row stalls the plan and
+ * the bar never reaches the end. Rowing one is still logged, still shown as
+ * done in the week list, and still moves nothing here. That is what optional
+ * means.
+ *
+ * That applies to `sessionIndex` too: it is the ordinal among the week's
+ * *required* sessions, not a slot in `week.sessions`. Pair it with
+ * {@link requiredSessionCount}, never with `week.sessions.length`.
  */
 export interface PlanPosition {
   readonly weekIndex: number
@@ -76,9 +108,18 @@ export function positionFor(plan: Plan, completedSessionIds: Iterable<string>): 
   let last: Pick<PlanPosition, 'weekIndex' | 'sessionIndex'> | null = null
 
   for (const week of plan.weeks) {
-    for (const [position, session] of week.sessions.entries()) {
+    // Counted, not read off `entries()`: the slot a session sits in is only
+    // its ordinal while every optional session comes last, which is a habit
+    // of the plans written so far and not a rule anything enforces. An
+    // optional Tuesday would otherwise make Wednesday "session 3 of 3".
+    let ordinal = 0
+
+    for (const session of week.sessions) {
+      if (!isRequired(session)) continue
+
+      ordinal += 1
       total += 1
-      last = { weekIndex: week.index, sessionIndex: position + 1 }
+      last = { weekIndex: week.index, sessionIndex: ordinal }
 
       if (completed.has(session.id)) done += 1
       else if (next === null) next = last
@@ -102,7 +143,8 @@ export function nextSession(plan: Plan, completedSessionIds: Iterable<string>): 
   const completed = new Set(completedSessionIds)
 
   for (const week of plan.weeks)
-    for (const session of week.sessions) if (!completed.has(session.id)) return session
+    for (const session of week.sessions)
+      if (isRequired(session) && !completed.has(session.id)) return session
 
   return null
 }

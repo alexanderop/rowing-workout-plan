@@ -2,6 +2,7 @@ import { describe, expect, it } from '@effect/vitest'
 import { Result } from 'effect'
 import { FastCheck } from 'effect/testing'
 import {
+  distanceMFor,
   durationMsFor,
   formatSplit,
   PaceRangeError,
@@ -130,6 +131,8 @@ describe('durationMsFor and splitFor', () => {
     expect(failed(durationMsFor(2000, 0)).field).toBe('splitMs')
     expect(failed(splitFor(-2000, 424_000)).field).toBe('distanceM')
     expect(failed(splitFor(2000, Number.NaN)).field).toBe('durationMs')
+    expect(failed(distanceMFor(0, 112_400)).field).toBe('durationMs')
+    expect(failed(distanceMFor(1_800_000, 0)).field).toBe('splitMs')
   })
 
   it('checks the distance before the duration', () => {

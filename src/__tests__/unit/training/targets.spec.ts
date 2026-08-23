@@ -2,7 +2,7 @@ import { describe, expect, it } from '@effect/vitest'
 import { Result } from 'effect'
 import { FastCheck } from 'effect/testing'
 
-import { pete5k } from '@/features/training/catalog'
+import { pete5k, PLANS } from '@/features/training/catalog'
 import { formatSplit } from '@/features/training/pace'
 import type { Rotation } from '@/features/training/schedule'
 import {
@@ -212,6 +212,8 @@ describe('stroke rates', () => {
     expect(rateOf('longRest')).toEqual({ low: 26, high: 28 })
     expect(rateOf('pacedTwoK')).toEqual({ low: 28, high: 30 })
     expect(rateOf('distancePiece', { distanceM: 5000 })).toEqual({ low: 24, high: 26 })
+    expect(rateOf('timedSteady', { durationMs: 1_800_000 })).toEqual({ low: 22, high: 25 })
+    expect(rateOf('timedIntervals', { repDurationMs: 600_000 })).toEqual({ low: 22, high: 26 })
   })
 
   it('keeps steady under the plan’s 25spm ceiling and hard work above it', () => {
@@ -289,6 +291,8 @@ describe('TARGET_OFFSETS_MS', () => {
       longRest: 4_000,
       pacedTwoK: 1_000,
       distancePiece: 0,
+      timedSteady: 20_000,
+      timedIntervals: 18_000,
     })
   })
 
@@ -296,19 +300,56 @@ describe('TARGET_OFFSETS_MS', () => {
     // The table is exported to be tuned. This is the assertion that it is the
     // real input and not documentation of a number hard-coded elsewhere.
     const pace2k = 106_050
-    for (const kind of ['steady', 'shortRest', 'longRest', 'pacedTwoK'] as const)
+    for (const kind of [
+      'steady',
+      'shortRest',
+      'longRest',
+      'pacedTwoK',
+      'timedSteady',
+      'timedIntervals',
+    ] as const)
       expect(splitOf(kind), kind).toBe(pace2k + TARGET_OFFSETS_MS[kind])
+  })
+
+  it('paces a timed piece exactly as the steady row it stands in for', () => {
+    // Not "about the same": the same number. A 30′ row is the distance row
+    // with a clock instead of a monitor, and two offsets that drifted apart
+    // would pace one week's endurance work two ways.
+    expect(splitOf('timedSteady')).toBe(splitOf('steady'))
+  })
+
+  it('paces timed intervals a touch faster than the piece, never slower', () => {
+    // The rests are what buy the two seconds. The ordering is the part worth
+    // guaranteeing — the size of the gap is taste.
+    expect(splitOf('timedIntervals')).toBeLessThan(splitOf('timedSteady'))
+    expect(splitOf('timedIntervals')).toBeGreaterThan(splitOf('shortRest'))
   })
 })
 
 describe('every session in the catalogue', () => {
   it('has a target', () => {
-    for (const week of pete5k.weeks)
-      for (const planSession of week.sessions)
-        expect(
-          Result.isSuccess(targetFor(planSession, BENCHMARK_2K_MS, 1)),
-          `${planSession.id} (${planSession.kind})`,
-        ).toBe(true)
+    // Every plan, not just pete5k: a kind with no offset entry is a compile
+    // error, but a kind whose *session* cannot be priced is not.
+    for (const plan of PLANS)
+      for (const week of plan.weeks)
+        for (const planSession of week.sessions)
+          expect(
+            Result.isSuccess(targetFor(planSession, BENCHMARK_2K_MS, 1)),
+            `${planSession.id} (${planSession.kind})`,
+          ).toBe(true)
+  })
+
+  it('gets one target per rep, for the timed intervals too', () => {
+    const target = succeeded(
+      targetFor(
+        { id: 't', kind: 'timedIntervals', reps: 4, repDurationMs: 480_000, restMs: 120_000 },
+        BENCHMARK_2K_MS,
+        1,
+      ),
+    )
+
+    expect(target.reps).toHaveLength(4)
+    for (const rep of target.reps) expect(rep.splitMs).toBe(target.splitMs)
   })
 })
 

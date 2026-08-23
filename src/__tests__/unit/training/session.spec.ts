@@ -6,12 +6,17 @@ import {
   describeSession,
   findSession,
   formatDistance,
-  formatRest,
+  formatDuration,
+  isTimed,
   kilometres,
   pieceDistanceM,
+  pieceDurationMs,
+  sessionDistanceEstimateM,
   sessionDistanceM,
   sessionDurationMs,
+  sessionWorkMs,
   weekDistanceM,
+  weekWorkMs,
 } from '@/features/training/session'
 import type { PlanSession, PlanWeek } from '@/features/training/types'
 
@@ -57,7 +62,7 @@ describe('formatDistance', () => {
   })
 })
 
-describe('formatRest', () => {
+describe('formatDuration', () => {
   it.each([
     [60_000, '1′'],
     [180_000, '3′'],
@@ -66,11 +71,11 @@ describe('formatRest', () => {
     [90_000, '1′30″'],
     [0, '0′'],
   ])('writes %p ms as %p', (restMs, expected) => {
-    expect(formatRest(restMs)).toBe(expected)
+    expect(formatDuration(restMs)).toBe(expected)
   })
 
   it('never uses a colon, which means a split everywhere else in the app', () => {
-    for (const restMs of [60_000, 210_000]) expect(formatRest(restMs)).not.toContain(':')
+    for (const restMs of [60_000, 210_000]) expect(formatDuration(restMs)).not.toContain(':')
   })
 })
 
@@ -80,6 +85,7 @@ describe('describeSession', () => {
       style: 'steady',
       reps: 1,
       distance: '10k',
+      duration: '0′',
       rest: '0′',
     })
   })
@@ -89,7 +95,13 @@ describe('describeSession', () => {
       session({ kind: 'shortRest', reps: 6, repDistanceM: 1000, restMs: 60_000 }),
     )
 
-    expect(description).toEqual({ style: 'intervals', reps: 6, distance: '1k', rest: '1′' })
+    expect(description).toEqual({
+      style: 'intervals',
+      reps: 6,
+      distance: '1k',
+      duration: '0′',
+      rest: '1′',
+    })
   })
 
   it('writes long-rest intervals the way the canvas does', () => {
@@ -97,7 +109,13 @@ describe('describeSession', () => {
       session({ kind: 'longRest', reps: 4, repDistanceM: 1800, restMs: 240_000 }),
     )
 
-    expect(description).toEqual({ style: 'intervals', reps: 4, distance: '1800m', rest: '4′' })
+    expect(description).toEqual({
+      style: 'intervals',
+      reps: 4,
+      distance: '1800m',
+      duration: '0′',
+      rest: '4′',
+    })
   })
 
   it('writes a paced 2k as intervals — it looks like one on the erg', () => {
@@ -105,7 +123,13 @@ describe('describeSession', () => {
       session({ kind: 'pacedTwoK', reps: 3, repDistanceM: 2000, restMs: 180_000 }),
     )
 
-    expect(description).toEqual({ style: 'intervals', reps: 3, distance: '2k', rest: '3′' })
+    expect(description).toEqual({
+      style: 'intervals',
+      reps: 3,
+      distance: '2k',
+      duration: '0′',
+      rest: '3′',
+    })
   })
 
   it('writes a hard piece as its own distance', () => {
@@ -113,6 +137,7 @@ describe('describeSession', () => {
       style: 'piece',
       reps: 1,
       distance: '5k',
+      duration: '0′',
       rest: '0′',
     })
   })
@@ -126,14 +151,128 @@ describe('describeSession', () => {
     expect(sessionDistanceM(intervals)).toBe(6000)
   })
 
+  it('writes a timed piece as its clock, not as metres it does not have', () => {
+    expect(describeSession(session({ kind: 'timedSteady', durationMs: 30 * 60_000 }))).toEqual({
+      style: 'time',
+      reps: 1,
+      distance: '0m',
+      duration: '30′',
+      rest: '0′',
+    })
+  })
+
+  it('writes timed intervals as reps of a clock', () => {
+    const description = describeSession(
+      session({ kind: 'timedIntervals', reps: 3, repDurationMs: 10 * 60_000, restMs: 120_000 }),
+    )
+
+    expect(description).toEqual({
+      style: 'timeIntervals',
+      reps: 3,
+      distance: '0m',
+      duration: '10′',
+      rest: '2′',
+    })
+  })
+
   it('describes every session in the catalogue without inventing a field', () => {
+    // A timed session states no distance and a distance one states no
+    // duration, so the assertion is that whichever half the kind *does* state
+    // is filled in — not that both are.
     for (const plan of PLANS)
       for (const week of plan.weeks)
         for (const planSession of week.sessions) {
           const description = describeSession(planSession)
-          expect(description.distance, planSession.id).not.toBe('0m')
+          const stated = isTimed(planSession) ? description.duration : description.distance
+
+          expect(stated, planSession.id).not.toBe(isTimed(planSession) ? '0′' : '0m')
           expect(description.reps, planSession.id).toBeGreaterThan(0)
         }
+  })
+})
+
+describe('the timed kinds', () => {
+  const piece = session({ kind: 'timedSteady', durationMs: 30 * 60_000 })
+  const intervals = session({
+    kind: 'timedIntervals',
+    reps: 3,
+    repDurationMs: 10 * 60_000,
+    restMs: 120_000,
+  })
+
+  it('knows which kinds the clock bounds', () => {
+    expect(isTimed(piece)).toBe(true)
+    expect(isTimed(intervals)).toBe(true)
+    expect(isTimed(session({ kind: 'steady', minDistanceM: 10_000 }))).toBe(false)
+  })
+
+  it('names one piece, where the work multiplies it out', () => {
+    // The same split `pieceDistanceM` and `sessionDistanceM` make: the
+    // sentence says "3 × 10′" and the week counts thirty minutes.
+    expect(pieceDurationMs(intervals)).toBe(600_000)
+    expect(sessionWorkMs(intervals)).toBe(1_800_000)
+    expect(pieceDurationMs(piece)).toBe(1_800_000)
+    expect(sessionWorkMs(piece)).toBe(1_800_000)
+  })
+
+  it('reads each timed kind’s own field, not the other one’s', () => {
+    // The two branches are not interchangeable: a `timedSteady` carrying a
+    // stray `repDurationMs` must still report its `durationMs`, or a 30′ row
+    // silently becomes whatever the wrong field held.
+    const crossed = session({
+      kind: 'timedSteady',
+      durationMs: 1_800_000,
+      repDurationMs: 600_000,
+    })
+
+    expect(pieceDurationMs(crossed)).toBe(1_800_000)
+  })
+
+  it('is zero for a distance kind, in both directions', () => {
+    const steady = session({ kind: 'steady', minDistanceM: 10_000 })
+
+    expect(sessionWorkMs(steady)).toBe(0)
+    expect(sessionDistanceM(piece)).toBe(0)
+  })
+
+  it('is zero for a timed session missing the field its kind needs', () => {
+    expect(sessionWorkMs(session({ kind: 'timedSteady' }))).toBe(0)
+    expect(sessionWorkMs(session({ kind: 'timedIntervals', reps: 3 }))).toBe(0)
+    expect(sessionWorkMs(session({ kind: 'timedIntervals', repDurationMs: 600_000 }))).toBe(0)
+  })
+
+  it('takes its duration from the clock, not from a split', () => {
+    // Two minutes of rest between three reps, and the split is not consulted
+    // at all — which is why an absurd one changes nothing.
+    for (const splitMs of [120_000, 90_000])
+      expect(Result.getOrElse(sessionDurationMs(intervals, splitMs), () => 0)).toBe(2_040_000)
+  })
+
+  it('estimates its distance off its own target split', () => {
+    // 30 minutes at 2:00/500m is 7,500 m. Nothing states that; the target
+    // implies it, which is the only honest metres a screen can print.
+    expect(Result.getOrElse(sessionDistanceEstimateM(piece, 120_000), () => 0)).toBe(7500)
+  })
+
+  it('hands a distance kind straight back, split or no split', () => {
+    const steady = session({ kind: 'steady', minDistanceM: 10_000 })
+
+    expect(Result.getOrElse(sessionDistanceEstimateM(steady, 120_000), () => -1)).toBe(10_000)
+    expect(Result.getOrElse(sessionDistanceEstimateM(steady, 0), () => -1)).toBe(10_000)
+  })
+
+  it('has no distance estimate without a pace, rather than a confident zero', () => {
+    expect(Result.isFailure(sessionDistanceEstimateM(piece, 0))).toBe(true)
+  })
+
+  it('sums a week’s timed work the way weekDistanceM sums its metres', () => {
+    const week: PlanWeek = {
+      index: 1,
+      sessions: [session({ kind: 'steady', minDistanceM: 10_000 }), piece, intervals],
+    }
+
+    expect(weekWorkMs(week)).toBe(3_600_000)
+    expect(weekDistanceM(week)).toBe(10_000)
   })
 })
 

@@ -1,6 +1,6 @@
 import { Result } from 'effect'
 
-import { durationMsFor, type PaceRangeError } from './pace'
+import { distanceMFor, durationMsFor, type PaceRangeError } from './pace'
 import type { Plan, PlanSession, PlanWeek, SessionKind } from './types'
 
 /**
@@ -23,11 +23,15 @@ const MS_PER_SECOND = 1000
 const SECONDS_PER_MINUTE = 60
 
 /**
- * The three sentences five kinds are written as. `pacedTwoK` reads as
+ * The five sentences seven kinds are written as. `pacedTwoK` reads as
  * intervals because that is what it looks like on the erg; what makes it
  * different is the per-rep pacing, and that is `targets.ts`'s business.
+ *
+ * The two timed kinds get sentences of their own rather than borrowing
+ * `steady` and `intervals`: those name a distance, and a session bounded by
+ * the clock has none to name.
  */
-type SessionStyle = 'steady' | 'intervals' | 'piece'
+type SessionStyle = 'steady' | 'intervals' | 'piece' | 'time' | 'timeIntervals'
 
 const STYLES = {
   steady: 'steady',
@@ -35,6 +39,8 @@ const STYLES = {
   longRest: 'intervals',
   pacedTwoK: 'intervals',
   distancePiece: 'piece',
+  timedSteady: 'time',
+  timedIntervals: 'timeIntervals',
 } satisfies Record<SessionKind, SessionStyle>
 
 /**
@@ -49,6 +55,7 @@ export interface SessionDescription {
   readonly style: SessionStyle
   readonly reps: number
   readonly distance: string
+  readonly duration: string
   readonly rest: string
 }
 
@@ -68,15 +75,20 @@ export function formatDistance(metres: number): string {
 }
 
 /**
- * A rest as the plan states it: `1′`, `4′`, `3′30″`.
+ * A duration as the plan states it: `1′`, `4′`, `3′30″`, `30′`.
  *
  * The prime marks rather than `1:00`, and the same form on every screen: a
  * colon between two numbers is a split everywhere else in this app, and a
  * rest that looks like a pace is the kind of thing a rower reads wrong once
  * and then rows wrong for a session.
+ *
+ * It was `formatRest` while rest was the only duration a plan stated. The
+ * timed kinds state work in the same unit and want the same form, and a
+ * function called `formatRest` printing the length of a 30′ row reads wrong
+ * at the call site — so the name says what it formats, not what it was for.
  */
-export function formatRest(restMs: number): string {
-  const totalSeconds = Math.round(restMs / MS_PER_SECOND)
+export function formatDuration(durationMs: number): string {
+  const totalSeconds = Math.round(durationMs / MS_PER_SECOND)
   const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE)
   const seconds = totalSeconds % SECONDS_PER_MINUTE
 
@@ -91,8 +103,47 @@ export function describeSession(session: PlanSession): SessionDescription {
     style,
     reps: session.reps ?? 1,
     distance: formatDistance(pieceDistanceM(session)),
-    rest: formatRest(session.restMs ?? 0),
+    duration: formatDuration(pieceDurationMs(session)),
+    rest: formatDuration(session.restMs ?? 0),
   }
+}
+
+/** The kinds the clock bounds rather than the monitor. */
+const TIMED_KINDS: ReadonlySet<SessionKind> = new Set(['timedSteady', 'timedIntervals'])
+
+/** Whether this session is prescribed as a duration rather than a distance. */
+export function isTimed(session: PlanSession): boolean {
+  return TIMED_KINDS.has(session.kind)
+}
+
+/**
+ * How long *one* piece of the session is, for the kinds that state it — the
+ * timed twin of {@link pieceDistanceM}, and zero for every distance kind.
+ *
+ * The fallthrough is `repDurationMs`, not an explicit `timedIntervals` test,
+ * for the same reason {@link pieceDistanceM} ends on `repDistanceM`: a kind
+ * that does not carry the field has it `undefined` and lands on zero anyway,
+ * so the extra branch decides nothing and no input can reach the arm behind
+ * it. Mutation testing is what surfaced that — an unreachable arm survives
+ * every mutant applied to it.
+ */
+export function pieceDurationMs(session: PlanSession): number {
+  if (session.kind === 'timedSteady') return session.durationMs ?? 0
+
+  return session.repDurationMs ?? 0
+}
+
+/** The session's work in milliseconds, rest excluded. Zero for a distance kind. */
+export function sessionWorkMs(session: PlanSession): number {
+  const perPiece = pieceDurationMs(session)
+  if (session.kind === 'timedSteady') return perPiece
+
+  return (session.reps ?? 0) * perPiece
+}
+
+/** The week's timed work, rest excluded — the timed twin of {@link weekDistanceM}. */
+export function weekWorkMs(week: PlanWeek): number {
+  return week.sessions.reduce((total, session) => total + sessionWorkMs(session), 0)
 }
 
 /**
@@ -111,7 +162,8 @@ export function pieceDistanceM(session: PlanSession): number {
 }
 
 /**
- * How far the session is, rest excluded.
+ * How far the session is, rest excluded. Zero for a timed kind, which
+ * prescribes no distance at all — see {@link sessionDistanceEstimateM}.
  *
  * A floor rather than a promise for `steady`, which has no upper bound — the
  * screens that add these up say "roughly", and that word is doing real work.
@@ -121,6 +173,27 @@ export function sessionDistanceM(session: PlanSession): number {
   if (session.kind === 'steady' || session.kind === 'distancePiece') return perPiece
 
   return (session.reps ?? 0) * perPiece
+}
+
+/**
+ * The metres this session is worth, estimating the timed kinds off their own
+ * target split.
+ *
+ * `sessionDistanceM` answers "what does the plan prescribe", and for a 30′ row
+ * the honest answer is nothing — which is right for a week's *prescribed*
+ * volume and useless on a screen with a metres field on it. This answers "how
+ * far is that", which needs a pace and so takes one.
+ *
+ * A `Result` because it divides by the split for the timed kinds; a distance
+ * kind succeeds with the number it already knew, split or no split.
+ */
+export function sessionDistanceEstimateM(
+  session: PlanSession,
+  splitMs: number,
+): Result.Result<number, PaceRangeError> {
+  if (!isTimed(session)) return Result.succeed(sessionDistanceM(session))
+
+  return distanceMFor(sessionWorkMs(session), splitMs)
 }
 
 /** The week's work, rest excluded — the sum of its sessions. */
@@ -178,8 +251,14 @@ export function sessionDurationMs(
   session: PlanSession,
   splitMs: number,
 ): Result.Result<number, PaceRangeError> {
-  return Result.map(durationMsFor(sessionDistanceM(session), splitMs), (workMs) => {
+  // A timed session already knows its work in this unit, so the split is not
+  // consulted — which is also why it cannot fail the way a distance one can.
+  const workMs = isTimed(session)
+    ? Result.succeed(sessionWorkMs(session))
+    : durationMsFor(sessionDistanceM(session), splitMs)
+
+  return Result.map(workMs, (work) => {
     const restCount = Math.max(0, (session.reps ?? 1) - 1)
-    return workMs + restCount * (session.restMs ?? 0)
+    return work + restCount * (session.restMs ?? 0)
   })
 }

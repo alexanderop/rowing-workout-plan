@@ -106,24 +106,52 @@ export function completedSessionIds(workouts: ReadonlyArray<Workout>): ReadonlyS
 export interface PlanSummary {
   readonly weekCount: number
   readonly sessionsPerWeek: number
+  /** The widest week's [square-bracketed] extras, or `0` for a plan with none. */
+  readonly optionalPerWeek: number
   readonly totalSessions: number
 }
 
 /**
- * The three numbers a browse card prints, counted off the plan itself.
+ * The numbers a browse card prints, counted off the plan itself.
  *
  * `sessionsPerWeek` is the widest week rather than the average, because it is
  * read as a commitment — "six a week" is what you have to have time for, and
- * a taper week that asks for five does not change that.
+ * a taper week that asks for five does not change that. By the same argument
+ * it counts *required* sessions only, and the optional ones get a number of
+ * their own: a plan of three core sessions plus two you might pick up is a
+ * three-a-week commitment, and printing "five" would turn its own invitation
+ * into a reason not to start.
+ *
+ * The two numbers come off *one* week rather than being two independent
+ * maxima, because the card prints them side by side and they are read as one
+ * commitment. Maxed separately, a plan with a 4+1 week and a 3+2 week would
+ * advertise "4 a week, 2 optional" — a six-session week it does not contain.
+ * The week that wins is the one asking the most, and among ties the one
+ * offering the most on top, so the pair always describes a week you can point
+ * at and neither number is understated.
+ *
+ * `totalSessions` counts everything the plan contains, optional included —
+ * it is what the plan holds, not what it asks of you.
  */
 export function planSummary(plan: Plan): PlanSummary {
   let sessionsPerWeek = 0
+  let optionalPerWeek = 0
   let totalSessions = 0
 
   for (const week of plan.weeks) {
-    sessionsPerWeek = Math.max(sessionsPerWeek, week.sessions.length)
+    const optional = week.sessions.filter((session) => session.optional === true).length
+    const required = week.sessions.length - optional
+
+    if (
+      required > sessionsPerWeek ||
+      (required === sessionsPerWeek && optional > optionalPerWeek)
+    ) {
+      sessionsPerWeek = required
+      optionalPerWeek = optional
+    }
+
     totalSessions += week.sessions.length
   }
 
-  return { weekCount: plan.weeks.length, sessionsPerWeek, totalSessions }
+  return { weekCount: plan.weeks.length, sessionsPerWeek, optionalPerWeek, totalSessions }
 }

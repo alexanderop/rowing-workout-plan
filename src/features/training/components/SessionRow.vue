@@ -46,12 +46,22 @@ const targetText = computed(() => text.value(session, target))
           t(`plans.session.${description.style}`, {
             reps: description.reps,
             distance: description.distance,
+            duration: description.duration,
             rest: description.rest,
           })
         }}
       </span>
-      <span class="block truncate text-xs text-muted-foreground">
-        {{ t(`plans.kind.${session.kind}`) }}
+      <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span class="truncate">{{ t(`plans.kind.${session.kind}`) }}</span>
+        <!-- A session the plan offers without requiring it. The badge is on
+             the kind line rather than the title so the sentence stays the
+             whole width it needs on a phone. -->
+        <span
+          v-if="session.optional === true"
+          class="shrink-0 rounded-sm border px-1 py-px text-[0.625rem] leading-tight font-medium tracking-wide uppercase"
+        >
+          {{ t('plans.optional') }}
+        </span>
       </span>
     </span>
 

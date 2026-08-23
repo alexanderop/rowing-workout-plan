@@ -11,8 +11,16 @@ import type { Plan } from '@/features/training/types'
  * "every kind is a real kind" invariant starts grading itself.
  */
 describe('SESSION_KINDS', () => {
-  it('is the five kinds, in the order the union derives from', () => {
-    expect(SESSION_KINDS).toEqual(['steady', 'shortRest', 'longRest', 'pacedTwoK', 'distancePiece'])
+  it('is the seven kinds, in the order the union derives from', () => {
+    expect(SESSION_KINDS).toEqual([
+      'steady',
+      'shortRest',
+      'longRest',
+      'pacedTwoK',
+      'distancePiece',
+      'timedSteady',
+      'timedIntervals',
+    ])
   })
 
   it('has no duplicates', () => {

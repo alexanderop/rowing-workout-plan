@@ -1,14 +1,14 @@
 import { describe, expect, it } from '@effect/vitest'
 
 import type { Benchmark, PlanEnrolment, Workout } from '@/db'
-import { pete5k, pete5kLite, PLANS } from '@/features/training/catalog'
+import { pete5k, pete5kLite, peteBeginner, PLANS } from '@/features/training/catalog'
 import {
   activePlan,
   completedSessionIds,
   currentBenchmark,
   planSummary,
 } from '@/features/training/progress'
-import type { Plan } from '@/features/training/types'
+import type { Plan, PlanSession } from '@/features/training/types'
 
 /**
  * Three tables in, three answers out — and every assertion here is about the
@@ -181,10 +181,27 @@ describe('completedSessionIds', () => {
 })
 
 describe('planSummary', () => {
+  /** `count` plain sessions for week `week`, ids positional as the real ones are. */
+  const core = (count: number, week: number): PlanSession[] =>
+    Array.from({ length: count }, (_unused, index) => ({
+      id: `w${week}-s${index + 1}`,
+      kind: 'steady' as const,
+      minDistanceM: 10_000,
+    }))
+
+  /** The same, flagged — appended after a week's core sessions. */
+  const extra = (count: number, week: number): PlanSession[] =>
+    core(count, week).map((session, index) => ({
+      ...session,
+      id: `w${week}-x${index + 1}`,
+      optional: true as const,
+    }))
+
   it('counts the full plan', () => {
     expect(planSummary(pete5k)).toEqual({
       weekCount: 12,
       sessionsPerWeek: 6,
+      optionalPerWeek: 0,
       totalSessions: 71,
     })
   })
@@ -193,6 +210,7 @@ describe('planSummary', () => {
     expect(planSummary(pete5kLite)).toEqual({
       weekCount: 12,
       sessionsPerWeek: 3,
+      optionalPerWeek: 0,
       totalSessions: 36,
     })
   })
@@ -215,7 +233,61 @@ describe('planSummary', () => {
       weeks: [],
     }
 
-    expect(planSummary(empty)).toEqual({ weekCount: 0, sessionsPerWeek: 0, totalSessions: 0 })
+    expect(planSummary(empty)).toEqual({
+      weekCount: 0,
+      sessionsPerWeek: 0,
+      optionalPerWeek: 0,
+      totalSessions: 0,
+    })
+  })
+
+  it('counts the commitment and the invitation apart', () => {
+    // The beginner plan is the case the two numbers exist for: five sessions
+    // are printed every week and three of them are asked for. A card saying
+    // "5 / week" would turn its own invitation into a reason not to start.
+    expect(planSummary(peteBeginner)).toEqual({
+      weekCount: 24,
+      sessionsPerWeek: 3,
+      optionalPerWeek: 2,
+      totalSessions: 120,
+    })
+  })
+
+  it('takes both numbers off one week, so the pair describes a week that exists', () => {
+    // Maxed apart, a 4+1 week and a 3+2 week advertise "4 a week, 2 optional"
+    // — a six-session week this plan does not contain. The badges sit side by
+    // side and are read as one commitment, so they come off one week.
+    const mixed: Plan = {
+      id: 'mixed',
+      name: 'Mixed',
+      descriptionKey: 'plans.catalog.pete5k.description',
+      source: 'test',
+      rotationWeeks: 1,
+      weeks: [
+        { index: 1, sessions: [...core(4, 1), ...extra(1, 1)] },
+        { index: 2, sessions: [...core(3, 2), ...extra(2, 2)] },
+      ],
+    }
+
+    expect(planSummary(mixed)).toMatchObject({ sessionsPerWeek: 4, optionalPerWeek: 1 })
+  })
+
+  it('breaks a tie toward the week offering the most on top', () => {
+    // Both weeks ask for three, so neither is "wider" — and picking the one
+    // with no extras would hide the invitation the other week makes.
+    const tied: Plan = {
+      id: 'tied',
+      name: 'Tied',
+      descriptionKey: 'plans.catalog.pete5k.description',
+      source: 'test',
+      rotationWeeks: 1,
+      weeks: [
+        { index: 1, sessions: core(3, 1) },
+        { index: 2, sessions: [...core(3, 2), ...extra(2, 2)] },
+      ],
+    }
+
+    expect(planSummary(tied)).toMatchObject({ sessionsPerWeek: 3, optionalPerWeek: 2 })
   })
 
   it('totals the sessions rather than multiplying weeks by the widest one', () => {

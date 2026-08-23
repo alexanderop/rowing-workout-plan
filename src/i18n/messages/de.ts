@@ -34,6 +34,8 @@ const de: MessageSchema = {
     loadError: 'Deine Pläne konnten nicht geladen werden',
     weeks: '{count} Wochen',
     perWeek: '{count} / Woche',
+    perWeekOptional: '{count} optional',
+    optional: 'Optional',
     active: {
       heading: 'Aktiver Plan',
       progress: 'Woche {week} von {weeks} · {done} von {total} Einheiten erledigt',
@@ -56,6 +58,10 @@ const de: MessageSchema = {
       pete5kLite: {
         description: 'Dieselben Drei-Wochen-Zyklen mit drei Einheiten pro Woche.',
       },
+      peteBeginner: {
+        description:
+          'Vierundzwanzig Wochen von den ersten 5k bis zu zwölf, drei Kerneinheiten pro Woche.',
+      },
     },
     toast: {
       enrolled: 'Du bist auf {name}',
@@ -65,6 +71,8 @@ const de: MessageSchema = {
       steady: '{distance}+ locker',
       intervals: '{reps} × {distance} / {rest} Pause',
       piece: '{distance}',
+      time: '{duration}',
+      timeIntervals: '{reps} × {duration} / {rest} Pause',
     },
     kind: {
       steady: 'Aerobe Distanz',
@@ -72,6 +80,8 @@ const de: MessageSchema = {
       longRest: 'Intervalle mit langer Pause',
       pacedTwoK: 'Gesteuerte 2k, außen locker',
       distancePiece: 'Harte Distanz',
+      timedSteady: 'Aerobe Zeitfahrt',
+      timedIntervals: 'Aerobe Zeitintervalle',
     },
     rotation: {
       first:
@@ -90,6 +100,7 @@ const de: MessageSchema = {
     week: {
       title: 'Woche {week}',
       summary: '{sessions} Einheiten · rund {km} km · {done} erledigt',
+      summaryWithTime: '{sessions} Einheiten · rund {km} km + {time} · {done} erledigt',
       strip: 'Wochen von {name}',
       open: 'Woche {week}',
       notFound: 'Diese Woche gehört nicht zu diesem Plan',

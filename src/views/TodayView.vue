@@ -9,8 +9,17 @@ import TemplatePageLayout from '@/components/templates/TemplatePageLayout.vue'
 
 import { activePlanAtom, benchmarkAtom, completedSessionsAtom } from '@/features/training/atoms'
 import SessionRow from '@/features/training/components/SessionRow.vue'
-import { nextSession, positionFor, rotationFor } from '@/features/training/schedule'
-import { describeSession, sessionDistanceM, sessionDurationMs } from '@/features/training/session'
+import {
+  nextSession,
+  positionFor,
+  requiredSessionCount,
+  rotationFor,
+} from '@/features/training/schedule'
+import {
+  describeSession,
+  sessionDistanceEstimateM,
+  sessionDurationMs,
+} from '@/features/training/session'
 import { targetFor } from '@/features/training/targets'
 import type { SessionTarget } from '@/features/training/targets'
 import type { PlanSession } from '@/features/training/types'
@@ -128,6 +137,25 @@ const durationText = computed(() => {
   )
 })
 
+/**
+ * The metres in the distance cell.
+ *
+ * A timed session states none, so the number shown is the one its own target
+ * implies — the alternative is a confident `0 m` beside a 30-minute row.
+ */
+const distanceText = computed(() => {
+  const current = session.value
+  const splitMs = target.value?.splitMs
+  if (current === null || splitMs === undefined) return ''
+
+  return Result.getOrElse(
+    Result.map(sessionDistanceEstimateM(current, splitMs), (distanceM) =>
+      metres.value(Math.round(distanceM)),
+    ),
+    () => '',
+  )
+})
+
 const rows = computed(() =>
   (week.value?.sessions ?? []).map((planSession, index) => ({
     session: planSession,
@@ -168,7 +196,7 @@ const rows = computed(() =>
                   week: position.weekIndex,
                   weeks: activePlan?.weeks.length ?? 0,
                   position: position.sessionIndex,
-                  sessions: week?.sessions.length ?? 0,
+                  sessions: week ? requiredSessionCount(week) : 0,
                 })
               }}
             </p>
@@ -184,6 +212,7 @@ const rows = computed(() =>
                   title: t(`plans.session.${description.style}`, {
                     reps: description.reps,
                     distance: description.distance,
+                    duration: description.duration,
                     rest: description.rest,
                   }),
                 })
@@ -198,6 +227,7 @@ const rows = computed(() =>
                   t(`plans.session.${description.style}`, {
                     reps: description.reps,
                     distance: description.distance,
+                    duration: description.duration,
                     rest: description.rest,
                   })
                 }}
@@ -215,7 +245,7 @@ const rows = computed(() =>
                 </div>
                 <div class="flex flex-col justify-between gap-0.5">
                   <dd class="font-semibold tabular-nums">
-                    {{ metres(sessionDistanceM(session)) }}
+                    {{ distanceText }}
                   </dd>
                   <dt class="text-xs text-muted-foreground">{{ t('today.distanceLabel') }}</dt>
                 </div>

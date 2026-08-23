@@ -2,6 +2,7 @@ import type { Plan } from '../types'
 
 import { pete5k } from './pete5k'
 import { pete5kLite } from './pete5kLite'
+import { peteBeginner } from './peteBeginner'
 
 /**
  * The catalogue: every plan the app ships, and nothing about any one of them.
@@ -23,6 +24,13 @@ import { pete5kLite } from './pete5kLite'
 
 export { pete5k } from './pete5k'
 export { pete5kLite } from './pete5kLite'
+export { peteBeginner } from './peteBeginner'
 
-/** Everything the Plans screen lists, in the order it lists it. */
-export const PLANS: readonly Plan[] = [pete5k, pete5kLite]
+/**
+ * Everything the Plans screen lists, in the order it lists it.
+ *
+ * The beginner plan is first because the order is the recommendation: the two
+ * 5k plans assume a rower who already trains, and the one that assumes
+ * nothing should be the one a new user meets first.
+ */
+export const PLANS: readonly Plan[] = [peteBeginner, pete5k, pete5kLite]

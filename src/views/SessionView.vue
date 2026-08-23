@@ -16,9 +16,11 @@ import {
   describeSession,
   findSession,
   formatDistance,
-  formatRest,
+  formatDuration,
+  isTimed,
   pieceDistanceM,
-  sessionDistanceM,
+  pieceDurationMs,
+  sessionDistanceEstimateM,
 } from '@/features/training/session'
 import { isRotationShifted, targetFor } from '@/features/training/targets'
 
@@ -61,6 +63,7 @@ const title = computed(() => {
   return t(`plans.session.${current.style}`, {
     reps: current.reps,
     distance: current.distance,
+    duration: current.duration,
     rest: current.rest,
   })
 })
@@ -90,10 +93,43 @@ const target = computed(() => {
   )
 })
 
-/** One piece of this session, written out — the same distance on every row. */
+/**
+ * One piece of this session, written out — the same on every row.
+ *
+ * A distance for the kinds the monitor bounds and a duration for the two the
+ * clock does: `8′` is what a rep of `4 × 8min` is, and `0m` is what asking a
+ * timed session for its metres gets you.
+ */
 const repDistance = computed(() => {
   const current = location.value
-  return current === null ? '' : formatDistance(pieceDistanceM(current.session))
+  if (current === null) return ''
+
+  return isTimed(current.session)
+    ? formatDuration(pieceDurationMs(current.session))
+    : formatDistance(pieceDistanceM(current.session))
+})
+
+/**
+ * What to prefill the log sheet with.
+ *
+ * The missing split is passed *through* rather than guarded on, because
+ * `sessionDistanceEstimateM` already draws the line in the right place: a
+ * distance session answers with the metres it always knew, split or no split,
+ * and only a timed one has to divide. Refusing to call it without a benchmark
+ * prefilled `0 m` for a week-1 5k rowed by someone who has not logged a 2k —
+ * exactly the rower most likely to be on this screen.
+ *
+ * So `0` stands in for "no 2k yet", which the timed kinds reject as a split
+ * and fall back to an empty field for. That is the field the sheet would have
+ * shown anyway.
+ */
+const plannedDistanceM = computed(() => {
+  const current = location.value
+  if (current === null) return 0
+
+  const estimate = sessionDistanceEstimateM(current.session, target.value?.splitMs ?? 0)
+
+  return Math.round(Result.getOrElse(estimate, () => 0))
 })
 
 /**
@@ -112,7 +148,7 @@ const reps = computed(() =>
 
 const restText = computed(() => {
   const restMs = location.value?.session.restMs
-  return restMs === undefined ? '' : t('plans.detail.rest', { rest: formatRest(restMs) })
+  return restMs === undefined ? '' : t('plans.detail.rest', { rest: formatDuration(restMs) })
 })
 
 /**
@@ -213,7 +249,7 @@ const backTo = computed(() => {
         <LogWorkoutSheet
           v-model:open="sheetOpen"
           :plan-session-id="location.session.id"
-          :distance-m="sessionDistanceM(location.session)"
+          :distance-m="plannedDistanceM"
         />
       </template>
     </div>

@@ -48,16 +48,20 @@ const INTERPOLATED = {
   },
   'features/training/components/SessionRow.vue': {
     reason:
-      'A session is written as one of three sentences (features/training/session.ts picks the style) and labelled with its kind, so both keys are built from data the catalogue owns.',
+      'A session is written as one of five sentences (features/training/session.ts picks the style) and labelled with its kind, so both keys are built from data the catalogue owns.',
     keys: [
       'plans.session.steady',
       'plans.session.intervals',
       'plans.session.piece',
+      'plans.session.time',
+      'plans.session.timeIntervals',
       'plans.kind.steady',
       'plans.kind.shortRest',
       'plans.kind.longRest',
       'plans.kind.pacedTwoK',
       'plans.kind.distancePiece',
+      'plans.kind.timedSteady',
+      'plans.kind.timedIntervals',
     ],
   },
   'views/PlanWeekView.vue': {

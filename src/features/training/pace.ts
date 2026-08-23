@@ -105,6 +105,24 @@ export function durationMsFor(
   })
 }
 
+/**
+ * How far a duration covers at a split — {@link durationMsFor} inverted.
+ *
+ * The timed sessions are the reason it exists: a plan that says "30′" states
+ * no distance at all, so the only honest metres a screen can print for one
+ * are the metres its own target implies.
+ */
+export function distanceMFor(
+  durationMs: number,
+  splitMs: number,
+): Result.Result<number, PaceRangeError> {
+  return Result.gen(function* () {
+    const duration = yield* requirePositive('durationMs', durationMs)
+    const split = yield* requirePositive('splitMs', splitMs)
+    return (duration / split) * SPLIT_DISTANCE_M
+  })
+}
+
 /** The split a distance covered in a duration was rowed at. */
 export function splitFor(
   distanceM: number,

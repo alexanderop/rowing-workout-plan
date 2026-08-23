@@ -48,6 +48,14 @@ const summary = computed(() => planSummary(plan))
       <span class="rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
         {{ t('plans.perWeek', { count: summary.sessionsPerWeek }) }}
       </span>
+      <!-- Only for a plan that has them. "0 optional" is not a fact worth a
+           badge, and it would read as a boast about a plan being austere. -->
+      <span
+        v-if="summary.optionalPerWeek > 0"
+        class="rounded-md bg-muted px-2 py-0.5 text-xs font-medium"
+      >
+        {{ t('plans.perWeekOptional', { count: summary.optionalPerWeek }) }}
+      </span>
     </span>
 
     <span class="text-sm font-normal text-muted-foreground">{{ t(plan.descriptionKey) }}</span>
