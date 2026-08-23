@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 import { describe, expect } from 'vitest'
 import { it } from '../fixtures'
+import { EMPTY_BACKUP } from '../helpers/backup'
 import { seedTraining } from '../helpers/seed'
 import { LogScreen } from '../pages/logScreen'
 import { exportData, runDb } from '@/db'
@@ -51,7 +52,10 @@ describe('deleting everything from settings', () => {
     await settings.deleteEverything()
 
     await settings.expectToast('Everything was deleted')
-    expect(await contents()).toMatchObject({ benchmarks: [], enrolments: [], workouts: [] })
+    // The whole payload, not the three arrays: a partial match says nothing
+    // about a table it was not handed, which is the one that would survive a
+    // wipe unnoticed.
+    expect(await contents()).toEqual({ ...EMPTY_BACKUP, exportedAt: expect.any(String) })
   })
 
   it('leaves the log empty behind it', async ({ settings }) => {

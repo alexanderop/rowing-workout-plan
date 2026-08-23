@@ -2,6 +2,7 @@ import { Layer } from 'effect'
 import { ObservabilityLayer } from '@/lib/observability'
 import { BenchmarksRepo } from './repositories/benchmarks'
 import { EnrolmentsRepo } from './repositories/enrolments'
+import { TrainingStore } from './repositories/store'
 import { WorkoutsRepo } from './repositories/workouts'
 
 /**
@@ -18,6 +19,7 @@ export const dbLayer = Layer.mergeAll(
   BenchmarksRepo.layer,
   EnrolmentsRepo.layer,
   WorkoutsRepo.layer,
+  TrainingStore.layer,
   ObservabilityLayer,
 )
 
@@ -27,18 +29,23 @@ export const dbLayer = Layer.mergeAll(
  * `ObservabilityLayer` deliberately does not widen it: a tracer is something
  * the runtime installs, not something a program asks for.
  */
-export type DbServices = BenchmarksRepo | EnrolmentsRepo | WorkoutsRepo
+export type DbServices = BenchmarksRepo | EnrolmentsRepo | WorkoutsRepo | TrainingStore
 
 /**
- * The same three repositories backed by in-memory Refs instead of IndexedDB,
- * so a full program — `exportData`, `importData`, anything composed over a
- * repo — runs in the Node unit tier. Assembled here for the same reason the
- * production stack is: one definition, so a repository added to one and
- * forgotten in the other is a type error rather than a missing service at
+ * The same services backed by in-memory Refs instead of IndexedDB, so a full
+ * program — `exportData`, `importData`, `deleteAllData`, anything composed
+ * over a repo — runs in the Node unit tier. Assembled here for the same
+ * reason the production stack is: one definition, so a service added to one
+ * and forgotten in the other is a type error rather than a missing service at
  * run time.
  */
-export const dbTestLayer = Layer.mergeAll(
+const testRepos = Layer.mergeAll(
   BenchmarksRepo.testLayer,
   EnrolmentsRepo.testLayer,
   WorkoutsRepo.testLayer,
 )
+
+// `provideMerge` rather than `mergeAll`: the fake store is *built from* the
+// three fakes (it empties their maps), so it needs them as a dependency and
+// the tests need all four out the other side.
+export const dbTestLayer = TrainingStore.testLayer.pipe(Layer.provideMerge(testRepos))

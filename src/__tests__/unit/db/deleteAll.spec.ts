@@ -3,7 +3,7 @@ import { Effect } from 'effect'
 import { deleteAllData } from '@/db/deleteAll'
 import { exportData, importData } from '@/db/backup'
 import { dbTestLayer } from '@/db/layer'
-import { FULL_BACKUP } from '../../helpers/backup'
+import { EMPTY_BACKUP, FULL_BACKUP } from '../../helpers/backup'
 
 /**
  * "Delete everything", as a program — no IndexedDB, so it runs in the Node
@@ -16,10 +16,20 @@ import { FULL_BACKUP } from '../../helpers/backup'
  * fails here. Listing the tables a second time in this spec would only mean
  * both copies could be forgotten together.
  *
+ * And they are `toEqual` against the empty-backup fixture rather than
+ * `toMatchObject` over the three arrays, which is the same argument one level
+ * up: a partial match ignores keys it was not told about, so the fourth table
+ * nobody wiped would pass a per-table assertion while failing the promise
+ * this spec is here to make. What a wipe leaves behind is an *empty backup*,
+ * envelope included, and that is exactly what is asserted.
+ *
  * The browser tier drives the same program against real Dexie
  * (`src/__tests__/db/deleteAll.spec.ts`); what that one adds is the storage
  * engine's opinion of a cleared table.
  */
+/** An export off an emptied database: the fixture, stamped by TestClock. */
+const EMPTIED = { ...EMPTY_BACKUP, exportedAt: '1970-01-01T00:00:00.000Z' }
+
 describe('deleteAllData', () => {
   it.effect('leaves every table empty', () =>
     Effect.gen(function* () {
@@ -27,7 +37,7 @@ describe('deleteAllData', () => {
 
       yield* deleteAllData
 
-      expect(yield* exportData).toMatchObject({ benchmarks: [], enrolments: [], workouts: [] })
+      expect(yield* exportData).toEqual(EMPTIED)
     }).pipe(Effect.provide(dbTestLayer)),
   )
 
@@ -38,7 +48,7 @@ describe('deleteAllData', () => {
       // reads as "your data could not be deleted".
       yield* deleteAllData
 
-      expect(yield* exportData).toMatchObject({ benchmarks: [], enrolments: [], workouts: [] })
+      expect(yield* exportData).toEqual(EMPTIED)
     }).pipe(Effect.provide(dbTestLayer)),
   )
 
