@@ -48,7 +48,7 @@ jobs:
       - name: Post the comment
         # Keep this SHA identical to the one in dependency-diff.yml: the two
         # halves exchange the artifact this reads, so they share its format.
-        uses: e18e/action-dependency-diff@6fdf9b0581697fc0268c689d774850f95c7b2bf0 # main @ 2026-07-27, unreleased
+        uses: e18e/action-dependency-diff@6fdf9b0581697fc0268c689d774850f95c7b2bf0 # main @ 2026-07-27, unreleased # zizmor: ignore[stale-action-refs]
         with:
           mode: comment-from-artifact
           # The basename the analysis step writes, not the artifact name above:

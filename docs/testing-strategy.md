@@ -134,25 +134,29 @@ The principle: the cost of a check should match how often it runs. Fast checks r
 ## The bundle budget
 
 `pnpm size-limit` measures `dist/assets/*.js` brotlied against the limit in
-`package.json`. **200 kB**, with the training feature complete at 188 kB — a
-little over 6% of headroom, which is enough that an ordinary change does not
-trip it and tight enough that a new dependency does.
+`package.json`. **210 kB**, with the app at just over 200 kB — a little under
+5% of headroom, which is enough that an ordinary change does not trip it and
+tight enough that a new dependency does.
 
-It was 172 kB for the starter, and raising it was a decision rather than a
-formality: the number exists to catch a regression, so moving it has to be
-deliberate and has to say what it bought. What it bought is slices 1–7 —
-four routes, the training core, the plan catalogue and a schema-validated
-persistence layer.
+It was 172 kB for the starter and 200 kB after the training feature, and each
+raise was a decision rather than a formality: the number exists to catch a
+regression, so moving it has to be deliberate and has to say what it bought.
+The 200 kB raise bought slices 1–7 — four routes, the training core, the plan
+catalogue and a schema-validated persistence layer. The 210 kB raise bought
+the number-entry pad (`MoleculeNumberField` and the fourteen numeric-input
+primitives, ~10 kB brotlied), the second training plan, and the version panel
+in settings — which together carried the total ~400 B past the old limit.
 
 Where the bytes actually are, brotlied, is worth knowing before anyone tries
 to cut them:
 
-| Chunk                   | Size  | What is in it                                                                                                                     |
-| ----------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `createLucideIcon-*.js` | 63 kB | Mostly `tailwind-merge`'s table of every Tailwind utility, plus lucide's icon factory. Fixed cost: it does not grow with the app. |
-| `db-*.js`               | 42 kB | Effect `Schema` and Dexie — the decode-every-row guarantee, priced.                                                               |
-| `useApi-*.js`           | 27 kB | reka-ui primitives.                                                                                                               |
-| everything else         | 56 kB | The router, the views, i18n, the app shell. Each view is 2–8 kB.                                                                  |
+| Chunk                     | Size  | What is in it                                                                                                                     |
+| ------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `createLucideIcon-*.js`   | 61 kB | Mostly `tailwind-merge`'s table of every Tailwind utility, plus lucide's icon factory. Fixed cost: it does not grow with the app. |
+| `db-*.js`                 | 41 kB | Effect `Schema` and Dexie — the decode-every-row guarantee, priced.                                                               |
+| `useApi-*.js`             | 27 kB | reka-ui primitives.                                                                                                               |
+| `MoleculeNumberField-*.js`| 10 kB | The number-entry pad: the field and the fourteen numeric-input primitives.                                                        |
+| everything else           | 61 kB | The router, the views, i18n, the app shell. Each view is 2–8 kB.                                                                  |
 
 The chunk _names_ are misleading — Vite names a chunk after one of its
 modules, so the biggest one is called `createLucideIcon` and contains no icon
