@@ -12,11 +12,16 @@ const de: MessageSchema = {
     buttons: {
       cancel: 'Abbrechen',
       close: 'Schließen',
+      next: 'Weiter',
       save: 'Speichern',
     },
     aria: {
       goBack: 'Zurück',
     },
+  },
+  entryPad: {
+    label: 'Ziffernblock für {field}',
+    backspace: 'Rücktaste',
   },
   plans: {
     title: 'Pläne',
@@ -170,6 +175,7 @@ const de: MessageSchema = {
     result: '{split} /500m · {watts} W',
     invalidDistance: 'Gib die Distanz in ganzen Metern ein',
     invalidTime: 'Gib eine Zeit wie 43:07 ein',
+    invalidTimeRange: 'Die Zeit muss größer als null sein',
     toast: {
       saved: 'Einheit eingetragen',
       saveFailed: 'Diese Einheit konnte nicht gespeichert werden',

@@ -8,9 +8,11 @@ status: proposed
 
 # Number entry
 
-> **Proposed, not built.** This file describes work that has not happened yet.
-> Nothing here is true of the code today, which is why [the index](index.md)
-> carries no row for it — add that row in the commit that ships stage 2.
+> **Stages 1 and 2 are in validation.** The mask and its unit tier are built,
+> and the time field is wired behind the touch gate. The installed-iOS PWA
+> check and week of field use are still outstanding, so stages 3 and 4 have
+> deliberately not started and [the index](index.md) carries no row yet. Add
+> that row in the commit that ships stage 2 after the gate passes.
 
 ## The problem
 
@@ -98,8 +100,13 @@ export function popDigit(digits: string): string
 Rules the mask enforces, so that nothing downstream has to:
 
 - **Right-to-left fill.** `'4307'` is `43:07`; `'7'` is `0:07`.
-- **The seconds pair stops at 59.** `pushDigit('duration', '437', '1')` returns
-  `'437'`. A malformed time is not rejected after the fact — it is unreachable.
+- **Transient seconds are permitted.** A right-to-left decimal mask has to pass
+  through `0:60` on the way from `0:06` to `6:00`, and through `5:95` on the
+  way to `59:59`. Rejecting those intermediate keys makes both valid values —
+  and the documented `7:04.2` benchmark — unreachable. The active pad therefore
+  suppresses a premature format message; when the user advances, the existing
+  parser decides whether the final text is valid. This is the parser contract
+  applied consistently, not a second seconds validator hidden in the mask.
 - **Tenths first for `split`.** `'7042'` is `7:04.2`.
 - **Digit ceilings.** `metres` 5, `duration` 4, `split` 5, `rate` 2.
 - **No leading zeros**, except the ones the mask itself pads in.
@@ -113,7 +120,8 @@ separator from `vue-i18n`.
 
 ```ts
 canonicalEntry(k, digitsFrom(k, s)) === s // for any s the pad can emit
-parseDuration(canonicalEntry('duration', d)) // succeeds for any non-zero d
+canonicalEntry('duration', enter(digitsFrom('duration', s))) === s
+  // for every parseDuration-valid m:ss inside the four-digit mask
 ```
 
 The second is the whole point of the exercise, stated as a test. See
@@ -191,12 +199,13 @@ selection means nothing.
 
 Each stage ships on its own and is worth having if the next never happens.
 
-1. **`entry.ts` + unit tests.** No UI change. Done when the module is in `CORE`
-   and its tests pass with no test doubles — which is the claim
+1. **`entry.ts` + unit tests (implemented).** No UI change. Done when the
+   module is in `CORE` and its tests pass with no test doubles — which is the claim
    [functional core](functional-core.md) makes falsifiable.
-2. **Time field only**, in `LogWorkoutSheet`, behind the touch gate. Done when
-   `43:07` can be entered without the alphabetic keyboard appearing on a real
-   iPhone, and `logSheet.invalidTime` no longer fires for format.
+2. **Time field only (implementation candidate)**, in `LogWorkoutSheet`, behind
+   the touch gate. Automated coarse-pointer coverage is green; this is done
+   when `43:07` can be entered without the alphabetic keyboard appearing on a
+   real iPhone, and `logSheet.invalidTime` does not fire during pad entry.
 3. **Distance and rate.** Presets, the `000` key, rate chips.
 4. **`BenchmarkSheet`.** Last: rarest interaction, most expensive regression,
    since every training target derives from that one number.
@@ -208,8 +217,8 @@ week of real use.
 
 New:
 
-- `src/__tests__/unit/training/entry.spec.ts` — the mask, including the 59 cap,
-  the ceilings, and the round-trip property.
+- `src/__tests__/unit/training/entry.spec.ts` — the mask, including transient
+  seconds, the ceilings, reachability, and the round-trip property.
 - A component spec for `MoleculeKeypad` per [UI components](ui-components.md).
 
 Will go red without attention:
@@ -232,6 +241,34 @@ and that the caret still renders. It is supported in Safari 12.2+, but
 standalone-mode input behaviour has surprised people before. If it does not
 suppress, both keyboards appear at once and the approach collapses — fifteen
 minutes on a real phone, per [agent-browser](agent-browser.md) or by hand.
+
+### Installed-iPhone gate
+
+Record the iPhone model, iOS version and build under test with the result. Run
+this from the Home Screen installation, not a Safari tab — the standalone-mode
+behaviour is the claim:
+
+1. Launch from the app icon and confirm there is no Safari chrome.
+2. Open **Log a row** and tap **Time**. The field keeps its text-field role and
+   visible caret; the app pad appears and the system keyboard does not.
+3. Enter `4`, `3`, `0`, `7`. The field ends at `43:07`, no format error appears,
+   and the caret remains in the field while the pad keys are pressed.
+4. Clear the field and enter `6`, `0`, `0`. The transient `0:60` does not show
+   an error while the pad is active, and the final value is `6:00`. Backspace
+   once and confirm the value becomes `0:60`; press **Next** and confirm the
+   existing format error appears.
+5. With a paired hardware keyboard, focus **Time**, replace its contents with
+   `6:00`, and confirm the real input accepts it despite `inputmode="none"`.
+   Press **Next** and confirm focus moves to the real Rate input.
+6. With VoiceOver enabled, repeat steps 2 and 3. The field is announced with
+   the **Time** label and current value, and every pad key has an intelligible
+   name, including **Backspace** and **Next**.
+
+Any system keyboard appearing beside the pad, missing caret, lost input label,
+or unreachable value fails stage 2. If the gate passes, use this time pad for
+every real manual workout logged over the next week. Start stage 3 only after
+that week ends without a wrong or blocked time entry; record any workaround as
+a failure rather than silently adapting around it.
 
 The accessibility of a custom input view under VoiceOver is the other unknown,
 and the HIG does not answer it. The touch gate bounds the damage; it does not

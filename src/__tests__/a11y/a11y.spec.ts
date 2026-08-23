@@ -1,4 +1,7 @@
 import { describe } from 'vitest'
+import { render } from 'vitest-browser-vue'
+import EntryPad from '@/features/training/components/EntryPad.vue'
+import { i18n } from '@/i18n'
 import { it } from '../fixtures'
 import { assertNoViolations, assertNoPageLevelViolations } from '../helpers/a11y'
 import { stubInstallPromptAvailable } from '../helpers/installEvent'
@@ -17,6 +20,27 @@ import { SWEEPS } from './coverage'
  * worth it. Structure sweeps are not repeated — landmarks do not change colour.
  */
 const THEMES = ['light', 'dark'] as const
+
+/**
+ * The shipped pad is touch-gated, while this tier intentionally runs a fine
+ * pointer. Mount the composite directly so axe still grades the controls a
+ * coarse-pointer user receives; the touch tier owns the gate itself.
+ */
+const entryPadIt = it.extend('entryPad', async ({}, { onCleanup }) => {
+  const mounted = render(EntryPad, {
+    props: {
+      kind: 'duration',
+      fieldLabel: 'Time',
+      actionLabel: 'Next',
+      extraKey: '00',
+      modelValue: '43:07',
+    },
+    global: { plugins: [i18n] },
+  })
+  onCleanup(() => mounted.unmount())
+
+  return mounted.container
+})
 
 describe.each(THEMES)('accessibility, %s theme', (mode) => {
   /** The fixture puts the class back afterwards, so nothing here has to. */
@@ -87,6 +111,12 @@ describe.each(THEMES)('accessibility, %s theme', (mode) => {
 
     // Framed on the dialog: it is portalled outside the screen's subtree.
     await assertNoViolations(screen.sheet.anyDialog.element())
+  })
+
+  entryPadIt(`${SWEEPS.entryPad} has no violations`, async ({ entryPad, theme }) => {
+    await applyTheme(theme)
+
+    await assertNoViolations(entryPad)
   })
 
   it(`${SWEEPS.planWeek} has no violations`, async ({ planWeek, theme }) => {

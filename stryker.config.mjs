@@ -32,6 +32,7 @@ export default {
     'src/db/deleteAll.ts',
     'src/features/*/catalog.ts',
     'src/features/*/domain.ts',
+    'src/features/*/entry.ts',
     'src/features/*/history.ts',
     'src/features/*/pace.ts',
     'src/features/*/progress.ts',
