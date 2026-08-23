@@ -51,6 +51,15 @@ convention. They run as their own Vitest project:
 pnpm test:lint-rules      # 13 files, ~200 cases, ~1 s, part of pnpm check
 ```
 
+`lint:oxlint:check` runs with `--max-warnings 0`, matching what
+`lint:eslint:check` has always done. Without it oxlint exits 0 on a warning,
+so `pnpm check` stayed green with findings sitting in the output — which is
+how two of them (`unicorn(no-new-array)`, `typescript(no-this-alias)`) lived
+in the tree unnoticed. A rule this project does not want to act on gets turned
+off in `.oxlintrc.json`, where the decision is visible; it does not get to be
+a warning nobody reads. The `--fix` scripts and the lint-staged hook keep the
+flag off on purpose: fixing is not the gate.
+
 ## Before you write one: is a rule the right tier?
 
 A lint rule is cheap to run and expensive to get right. Four things are usually
@@ -224,10 +233,13 @@ export const decodeBackup = (payload: unknown) => …
 that wraps onto a second `//` line silently moves the target down one line and
 the suppression stops working. Put the prose in a comment _above_ the
 directive and keep the reason after `--` short. There are four suppressions in
-this repo today (`src/db/backup.ts` ×2, `src/db/repositories/notes.ts`,
+this repo today (`src/db/backup.ts` ×2, `src/db/repositories/support.ts` ×2,
 `src/lib/backupFile.ts`) and they are all the same case: the schema decode
 boundary, where `unknown` is the correct type and a named one would be the
-unchecked claim the rule exists to prevent.
+unchecked claim the rule exists to prevent. The two in `support.ts` are the
+generic `rowDecoder` every repository builds its read path from; they used to
+be one per repository, and folding the shape into one place folded the
+suppressions with it.
 
 `.oxlintrc.json`'s `overrides` are the other hatch, for a directory rather than
 a line. `.claude/**` and `.codex/**` opt out of `no-runtime-typeof` there,

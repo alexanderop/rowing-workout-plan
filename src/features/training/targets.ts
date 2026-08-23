@@ -275,7 +275,7 @@ export function targetFor(
       return { ...summary, reps }
     }
 
-    const reps = new Array<PaceTarget>(session.reps ?? 1).fill(summary)
+    const reps = Array.from<PaceTarget>({ length: session.reps ?? 1 }).fill(summary)
     return { ...summary, reps }
   })
 }
