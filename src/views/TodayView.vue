@@ -93,10 +93,11 @@ const week = computed(() => {
 function targetOf(planSession: PlanSession): SessionTarget | null {
   const benchmarkMs = benchmark2kMs.value
   const at = position.value
-  if (benchmarkMs === null || at === null) return null
+  const current = activePlan.value
+  if (benchmarkMs === null || at === null || current === null) return null
 
   return Result.getOrElse(
-    Result.flatMap(rotationFor(at.weekIndex), (rotation) =>
+    Result.flatMap(rotationFor(current, at.weekIndex), (rotation) =>
       targetFor(planSession, benchmarkMs, rotation),
     ),
     () => null,

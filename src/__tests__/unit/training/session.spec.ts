@@ -26,8 +26,8 @@ const session = (fields: Partial<PlanSession> & Pick<PlanSession, 'kind'>): Plan
   ...fields,
 })
 
-// SAFETY: the plan is built with twelve weeks (`PLAN_WEEKS`), and
-// `catalog.spec.ts` asserts that count — so index 2 is week 3 and is present.
+// SAFETY: pete5k is built with twelve weeks and its own spec pins that count,
+// so index 2 is week 3 and is present.
 /** Week 3 of the full plan — the one the design canvas works through. */
 const WEEK_3 = pete5k.weeks[2] as PlanWeek
 

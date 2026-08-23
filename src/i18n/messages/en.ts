@@ -83,11 +83,13 @@ export default {
       pacedTwoK: 'Paced 2k, easy either side',
       distancePiece: 'Hard distance piece',
     },
-    // Where a week sits in the three-week cycle. The plan's ending wins over
-    // the rotation's — see `rotationNote`.
+    // Where a week sits in its plan's cycle. The plan's ending wins over the
+    // rotation's — see `rotationNote`. No sentence here names a position by
+    // ordinal: how long a rotation is belongs to the plan, so "second week"
+    // would print a confident wrong number for any plan not built in threes.
     rotation: {
       first: 'First week of rotation {rotation} — the shortest reps of the cycle, and the fastest.',
-      middle: 'Second week of rotation {rotation} — the reps lengthen at the same target.',
+      middle: 'Mid-rotation week of rotation {rotation} — the reps lengthen at the same target.',
       last: 'Last week of rotation {rotation} — the reps are at their longest. From week {nextWeek} the cycle restarts a touch faster.',
       final: 'Last week of the plan. Rotation {rotation} closes here.',
     },

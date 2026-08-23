@@ -92,5 +92,15 @@ export interface Plan {
   readonly name: string
   readonly descriptionKey: string
   readonly source: string
+  /**
+   * The length of one pass through the plan's cycle, in weeks.
+   *
+   * Plan *length* is `weeks.length` and stays derived — a second field for it
+   * could disagree with the array — but the rotation is not derivable from the
+   * weeks, because the weeks are generated from it. `schedule.ts` locates a
+   * rower by this number, so it belongs to the plan rather than to the module
+   * that happens to lay one out.
+   */
+  readonly rotationWeeks: number
   readonly weeks: readonly PlanWeek[]
 }

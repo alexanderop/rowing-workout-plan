@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@effect/vitest'
 
-import { PLAN_WEEKS, PLANS, pete5k, pete5kLite, ROTATION_WEEKS } from '@/features/training/catalog'
+import { PLANS, pete5k, pete5kLite } from '@/features/training/catalog'
 import { SESSION_KINDS } from '@/features/training/types'
 import type { Plan, PlanSession } from '@/features/training/types'
 
@@ -19,6 +19,10 @@ import type { Plan, PlanSession } from '@/features/training/types'
  * consistently, confidently wrong. Week 3 is pinned against the design canvas;
  * the rest follows from the rotation, which is pinned by weeks 3 and 6 agreeing.
  */
+
+/** The pete5k family's shape, pinned here until slice 2 moves it to its own file. */
+const PLAN_WEEKS = 12
+const ROTATION_WEEKS = 3
 
 const sessionsOf = (plan: Plan): readonly PlanSession[] =>
   plan.weeks.flatMap((week) => week.sessions)

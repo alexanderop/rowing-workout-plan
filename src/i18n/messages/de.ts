@@ -76,7 +76,7 @@ const de: MessageSchema = {
     rotation: {
       first:
         'Erste Woche von Zyklus {rotation} — die kürzesten Intervalle des Zyklus, und die schnellsten.',
-      middle: 'Zweite Woche von Zyklus {rotation} — die Intervalle werden länger, das Ziel bleibt.',
+      middle: 'Woche mitten in Zyklus {rotation} — die Intervalle werden länger, das Ziel bleibt.',
       last: 'Letzte Woche von Zyklus {rotation} — die Intervalle sind am längsten. Ab Woche {nextWeek} beginnt der Zyklus eine Spur schneller von vorn.',
       final: 'Letzte Woche des Plans. Zyklus {rotation} endet hier.',
     },

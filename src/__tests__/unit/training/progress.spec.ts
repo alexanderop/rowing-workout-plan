@@ -211,6 +211,7 @@ describe('planSummary', () => {
       name: 'Empty',
       descriptionKey: 'plans.catalog.pete5k.description',
       source: 'test',
+      rotationWeeks: 3,
       weeks: [],
     }
 

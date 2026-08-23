@@ -33,12 +33,14 @@ const MINUTE_MS = 60_000
 /**
  * Weeks in one rotation, and weeks in a plan: four rotations of three.
  *
- * Exported because `schedule.ts` locates you by them — the rotation is not an
- * artefact of how this file lays weeks out, it is the structure the Plan week
- * screen explains and the structure slice 3 shifts targets by.
+ * Local to this file. The rotation is not an artefact of how weeks are laid
+ * out — it is the structure the Plan week screen explains and the structure
+ * `targets.ts` shifts by — so it travels on the `Plan` as `rotationWeeks`,
+ * and `schedule.ts` reads it from there. These two are what the plans below
+ * happen to be built from, and a third plan is free to be built from others.
  */
-export const ROTATION_WEEKS = 3
-export const PLAN_WEEKS = 12
+const ROTATION_WEEKS = 3
+const PLAN_WEEKS = 12
 
 /**
  * The floor on a steady row, with no ceiling — the screens say "10k+". Steady
@@ -181,7 +183,7 @@ function buildPlan(
     })
   }
 
-  return { id, name, descriptionKey, source, weeks }
+  return { id, name, descriptionKey, source, rotationWeeks: ROTATION_WEEKS, weeks }
 }
 
 /** Twelve weeks, 71 sessions, tapering into a 5k test. */

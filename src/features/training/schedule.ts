@@ -1,6 +1,5 @@
 import { Result, Schema } from 'effect'
 
-import { PLAN_WEEKS, ROTATION_WEEKS } from './catalog'
 import type { Plan, PlanSession } from './types'
 
 /**
@@ -17,8 +16,16 @@ import type { Plan, PlanSession } from './types'
  * docs/functional-core.md.
  */
 
-/** Which pass through the three-week cycle a week belongs to. */
-export type Rotation = 1 | 2 | 3 | 4
+/**
+ * Which pass through the plan's cycle a week belongs to: a positive integer,
+ * 1-based like every other index a screen prints.
+ *
+ * A union of literals for as long as every plan was twelve weeks in threes,
+ * which made a fourth-and-a-bit unrepresentable and needed a cast to say so.
+ * How many rotations there are is now the plan's business — `rotationWeeks`
+ * and `weeks.length` between them — so the type stops guessing.
+ */
+export type Rotation = number
 
 /**
  * A week index that is not a week of the plan: zero, negative, past the end,
@@ -100,38 +107,38 @@ export function nextSession(plan: Plan, completedSessionIds: Iterable<string>): 
   return null
 }
 
-/** Whether a number is a week of the plan at all. */
-function isPlanWeek(weekIndex: number): boolean {
-  return Number.isInteger(weekIndex) && weekIndex >= 1 && weekIndex <= PLAN_WEEKS
+/** Whether a number is a week of this plan at all. */
+function isPlanWeek(plan: Plan, weekIndex: number): boolean {
+  return Number.isInteger(weekIndex) && weekIndex >= 1 && weekIndex <= plan.weeks.length
 }
 
 /**
- * Which rotation a week belongs to: weeks 1–3 are rotation 1, 4–6 rotation 2,
- * and so on.
+ * Which rotation a week belongs to: with a three-week cycle, weeks 1–3 are
+ * rotation 1, 4–6 rotation 2, and so on.
  *
- * A `Result` rather than a clamp because the return type is four literals and
- * there is no honest fourth-and-a-bit — week 13 is not "rotation 4 again", it
- * is a week this plan does not have, and a clamp would quietly pace it as if
- * it did. When the ongoing plan lands, this is where the ceiling comes off.
+ * A `Result` rather than a clamp because a week past the end of the plan is
+ * not "the last rotation again", it is a week this plan does not have, and a
+ * clamp would quietly pace it as if it did. Both bounds now come off the plan,
+ * so the same week can be rotation 2 of one plan and out of range for another.
  */
-export function rotationFor(weekIndex: number): Result.Result<Rotation, WeekRangeError> {
-  if (!isPlanWeek(weekIndex)) return Result.fail(new WeekRangeError({ weekIndex }))
+export function rotationFor(
+  plan: Plan,
+  weekIndex: number,
+): Result.Result<Rotation, WeekRangeError> {
+  if (!isPlanWeek(plan, weekIndex)) return Result.fail(new WeekRangeError({ weekIndex }))
 
-  // SAFETY: the guard above has established 1 <= weekIndex <= 12 and integral,
-  // so the quotient is 0..3 and the result is one of the four literals. The
-  // cast is what a dependent return type would express if TypeScript had one.
-  return Result.succeed((Math.floor((weekIndex - 1) / ROTATION_WEEKS) + 1) as Rotation)
+  return Result.succeed(Math.floor((weekIndex - 1) / plan.rotationWeeks) + 1)
 }
 
 /**
  * Whether a week closes its rotation — the week the reps are at their longest
- * and the paced 2k re-targets the next three.
+ * and the paced 2k re-targets the next cycle.
  *
  * Total where {@link rotationFor} is not: "is week 13 a rotation end" has an
  * honest answer, and it is no.
  */
-export function isRotationEnd(weekIndex: number): boolean {
-  return isPlanWeek(weekIndex) && weekIndex % ROTATION_WEEKS === 0
+export function isRotationEnd(plan: Plan, weekIndex: number): boolean {
+  return isPlanWeek(plan, weekIndex) && weekIndex % plan.rotationWeeks === 0
 }
 
 /**
@@ -146,8 +153,6 @@ export function isRotationEnd(weekIndex: number): boolean {
  */
 type RotationVariant = 'first' | 'middle' | 'last' | 'final'
 
-const VARIANTS: ReadonlyArray<RotationVariant> = ['first', 'middle', 'last']
-
 export interface RotationNote {
   readonly variant: RotationVariant
   readonly rotation: Rotation
@@ -155,18 +160,27 @@ export interface RotationNote {
   readonly nextWeek: number
 }
 
+/**
+ * The variant for a week's place in its cycle, by position rather than by a
+ * fixed three-entry table.
+ *
+ * `last` is tested before `first` so that a one-week rotation, where the two
+ * collide, says the thing that matters: the cycle restarts here.
+ */
+function variantAt(slot: number, rotationWeeks: number): RotationVariant {
+  if (slot === rotationWeeks - 1) return 'last'
+  if (slot === 0) return 'first'
+  return 'middle'
+}
+
 export function rotationNote(
   plan: Plan,
   weekIndex: number,
 ): Result.Result<RotationNote, WeekRangeError> {
-  return Result.map(rotationFor(weekIndex), (rotation) => {
-    const slot = (weekIndex - 1) % ROTATION_WEEKS
+  return Result.map(rotationFor(plan, weekIndex), (rotation) => {
+    const slot = (weekIndex - 1) % plan.rotationWeeks
     const isFinalWeek = weekIndex === plan.weeks.length
-
-    // SAFETY: `slot` is 0..2 by construction — `rotationFor` has already
-    // rejected a non-integral or out-of-range week — and VARIANTS has an
-    // entry for each. The index is total; only TypeScript cannot see it.
-    const variant = isFinalWeek ? 'final' : (VARIANTS[slot] as RotationVariant)
+    const variant = isFinalWeek ? 'final' : variantAt(slot, plan.rotationWeeks)
 
     return { variant, rotation, nextWeek: weekIndex + 1 }
   })

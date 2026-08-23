@@ -83,7 +83,7 @@ const target = computed(() => {
   if (current === null || benchmarkMs === null) return null
 
   return Result.getOrElse(
-    Result.flatMap(rotationFor(current.week.index), (rotation) =>
+    Result.flatMap(rotationFor(current.plan, current.week.index), (rotation) =>
       targetFor(current.session, benchmarkMs, rotation),
     ),
     () => null,

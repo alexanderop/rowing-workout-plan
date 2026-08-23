@@ -44,15 +44,16 @@ const completedIds = computed(() =>
  * The target for one session, or `null`.
  *
  * Two ways to get nothing and one answer for both: no 2k has been entered
- * yet, or this week is outside the rotation table. The row lists the session
+ * yet, or this week is not one this plan has. The row lists the session
  * either way — what you are meant to row does not depend on knowing how fast.
  */
 function targetOf(session: PlanSession): SessionTarget | null {
+  const current = plan.value
   const benchmarkMs = benchmark2kMs.value
-  if (benchmarkMs === null) return null
+  if (current === null || benchmarkMs === null) return null
 
   return Result.getOrElse(
-    Result.flatMap(rotationFor(weekIndex.value), (rotation) =>
+    Result.flatMap(rotationFor(current, weekIndex.value), (rotation) =>
       targetFor(session, benchmarkMs, rotation),
     ),
     () => null,
