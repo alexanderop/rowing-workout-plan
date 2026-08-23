@@ -29,6 +29,33 @@ const buildEnrolment = (
 const deactivated = (row: PlanEnrolment): PlanEnrolment => ({ ...row, active: false })
 
 /**
+ * At most one active row in an incoming batch, the most recently started.
+ *
+ * Deactivating the rows already in the table says nothing about the batch
+ * landing on top of them, and a backup file is untrusted input off disk like
+ * any other: one carrying two active enrolments restored two active
+ * enrolments, in both layers and long before they shared any code. Nothing
+ * broke visibly, because `activePlan` breaks the tie on `startedAt` — but it
+ * documents that tiebreak as unreachable *because* `putMany` deactivates, so
+ * either the write enforces it or that comment is wrong.
+ *
+ * The same rule as the tiebreak, so there is one answer to "which plan am I
+ * on" rather than two that agree by luck. Ties inside the batch go to the row
+ * that arrives later, matching `currentBenchmark`'s `>=` for the same reason:
+ * re-exporting a file you have just fixed should take effect.
+ */
+const oneActive = (rows: ReadonlyArray<PlanEnrolment>): ReadonlyArray<PlanEnrolment> => {
+  const winner = rows
+    .filter((row) => row.active)
+    .reduce<PlanEnrolment | null>(
+      (best, row) => (best === null || row.startedAt >= best.startedAt ? row : best),
+      null,
+    )
+
+  return rows.map((row) => (row.active && row !== winner ? deactivated(row) : row))
+}
+
+/**
  * Enrolments: which plan a rower is on.
  *
  * `create` deactivates every other enrolment in the same transaction rather
@@ -89,15 +116,17 @@ export class EnrolmentsRepo extends Context.Service<
          * be the plan you are on, and which of them a screen showed came down
          * to the order Dexie happened to return random UUIDs in.
          *
-         * The backup wins, because that is what restoring one means.
+         * The backup wins, because that is what restoring one means — but only
+         * one row of it does, which `oneActive` is for.
          */
         putMany: Effect.fn('EnrolmentsRepo.putMany')(function* (
           rows: ReadonlyArray<PlanEnrolment>,
         ) {
+          const incoming = oneActive(rows)
           yield* tryDb('bulk import enrolments', async () => {
             await db.transaction('rw', db.enrolments, async () => {
               await db.enrolments.toCollection().modify({ active: false })
-              await db.enrolments.bulkPut([...rows])
+              await db.enrolments.bulkPut([...incoming])
             })
           })
         }),
@@ -138,7 +167,7 @@ export class EnrolmentsRepo extends Context.Service<
         putMany: Effect.fn('EnrolmentsRepo.Test.putMany')(function* (
           rows: ReadonlyArray<PlanEnrolment>,
         ) {
-          yield* table.putMany(rows, deactivated)
+          yield* table.putMany(oneActive(rows), deactivated)
         }),
       })
     }),

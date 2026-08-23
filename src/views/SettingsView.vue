@@ -146,9 +146,18 @@ async function handleDeleteAll(): Promise<void> {
         'Db.DatabaseError',
         reportFailure('delete all data', t('settings.data.deleteError')),
       ),
+      // Inside the program rather than after the await, so it holds on the
+      // path the await does not return from: `write` rethrows a defect, which
+      // used to leave the dialog standing over a wipe that had already
+      // stopped — the "press it again" the paragraph above rules out, and with
+      // no toast either, since a defect reaches neither branch above.
+      Effect.ensuring(
+        Effect.sync(() => {
+          confirmDeleteOpen.value = false
+        }),
+      ),
     ),
   )
-  confirmDeleteOpen.value = false
 }
 </script>
 

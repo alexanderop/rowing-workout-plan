@@ -140,6 +140,29 @@ describe('the backup programs', () => {
     }).pipe(Effect.provide(dbTestLayer)),
   )
 
+  it.effect('leaves exactly one enrolment active when the backup itself has two', () =>
+    Effect.gen(function* () {
+      // Deactivating the rows already in the table says nothing about the
+      // batch landing on top of them. A backup file is untrusted input off
+      // disk, and one carrying two active enrolments used to restore two —
+      // which `progress.ts` documents as unreachable *because* `putMany`
+      // deactivates. The most recently started wins, the same rule
+      // `activePlan` breaks its tie on.
+      yield* importData({
+        ...EMPTY_BACKUP,
+        enrolments: [
+          { id: 'older', planId: 'pete5k', startedAt: 1_000, active: true },
+          { id: 'newer', planId: 'pete5kLite', startedAt: 2_000, active: true },
+        ],
+      })
+
+      const enrolments = yield* EnrolmentsRepo.use((repo) => repo.list())
+      expect(enrolments.filter((row) => row.active).map((row) => row.id)).toEqual(['newer'])
+      // Both rows are kept — a restore does not delete what it holds.
+      expect(enrolments).toHaveLength(2)
+    }).pipe(Effect.provide(dbTestLayer)),
+  )
+
   it.effect('normalizes a historical row on the way in', () =>
     Effect.gen(function* () {
       // A workout written before the app recorded intervals or knew where a
