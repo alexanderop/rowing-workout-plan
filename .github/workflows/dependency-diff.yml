@@ -48,7 +48,7 @@ jobs:
         # you to skip the comment that also carries the size and replacement
         # findings. e18e#172 makes it report only duplicates the PR introduces.
         # Move back to a tag once one ships containing that commit.
-        uses: e18e/action-dependency-diff@6fdf9b0581697fc0268c689d774850f95c7b2bf0 # main @ 2026-07-27, unreleased
+        uses: e18e/action-dependency-diff@6fdf9b0581697fc0268c689d774850f95c7b2bf0 # main @ 2026-07-27, unreleased # zizmor: ignore[stale-action-refs]
         with:
           mode: artifact
           detect-replacements: 'true'

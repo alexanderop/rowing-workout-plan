@@ -226,7 +226,10 @@ jobs:
       group: release-main
       cancel-in-progress: false
     permissions:
-      contents: write
+      # The one job allowed to write: it pushes the release tag for the
+      # verified commit (and the changelog action creates the GitHub release
+      # from it). Every other job in this workflow is contents: read.
+      contents: write # pushes the release tag
     steps:
       - name: Checkout verified main commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
