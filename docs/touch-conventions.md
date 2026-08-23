@@ -143,6 +143,18 @@ Two rules follow, and the arch tier enforces both:
 _and_ the responsibility for it, so the top and side insets have to be paid
 too, not only the bottom one.
 
+Viewport units are environment values too, and `dvh` is the one that lies.
+Standalone WebKit computes the dynamic viewport lazily, so a fresh document in
+an installed app — which is exactly what the update banner's reload produces —
+can lay out against a stale `100dvh` taller than the screen, pushing the tab
+bar below the fold until a rotation forces a recompute. The shell therefore
+sizes itself with the `h-app-viewport` utility in `src/style.css`: `100dvh` in
+a browser tab, where it tracks the collapsing toolbar, swapped for `100vh`
+under `@media (display-mode: standalone)`, where there is no dynamic chrome and
+`vh` is correct from the first frame. Like the insets, this is a class of bug
+no desktop tier can show — `svh`, `lvh` and `dvh` all report the same value in
+device emulation.
+
 **Where the inset goes is a layout decision, not a habit.** The obvious home is
 the scroll container, and it is wrong here: a sticky element's constraint
 rectangle is the _scrollport_, meaning the scroll container's padding box, so

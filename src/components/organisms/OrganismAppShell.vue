@@ -52,8 +52,13 @@ function navigate(routeName: string): void {
        top of <main> and slide under the status bar, which is the bug this
        pays off. One declaration here is correct with or without a sticky
        header, and cannot be double-paid. `bg-background` paints under the
-       padding, so the status-bar strip is filled rather than transparent. -->
-  <div class="flex h-dvh flex-col bg-background safe-area-top safe-area-x">
+       padding, so the status-bar strip is filled rather than transparent.
+
+       `h-app-viewport`, not `h-dvh`: standalone WebKit can serve a stale dvh
+       to a freshly reloaded document — the PWA update flow's reload — which
+       laid the shell out taller than the screen and hid the tab bar below the
+       fold. The utility in src/style.css swaps to 100vh when installed. -->
+  <div class="flex h-app-viewport flex-col bg-background safe-area-top safe-area-x">
     <main
       class="flex-1 overflow-y-auto overscroll-contain"
       :class="hideNavigation && 'safe-area-bottom'"
@@ -62,7 +67,7 @@ function navigate(routeName: string): void {
     </main>
 
     <!-- No `sticky bottom-0`: the nav is a non-flexing sibling in a
-         non-scrolling h-dvh column, so there is no scrollport for it to stick
+         non-scrolling viewport-height column, so there is no scrollport for it to stick
          against. The class read as load-bearing and was inert. Where it does
          not render (meta.hideNav), <main> pays the bottom inset instead. -->
     <nav
