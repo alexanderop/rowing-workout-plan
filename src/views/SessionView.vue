@@ -83,7 +83,7 @@ const target = computed(() => {
   const current = location.value
   if (current === null) return null
 
-  return targetInWeek(current.session, benchmark2kMs.value, current.week.index)
+  return targetInWeek(current.plan, current.session, benchmark2kMs.value, current.week.index)
 })
 
 /** One piece of this session, written out — the same distance on every row. */

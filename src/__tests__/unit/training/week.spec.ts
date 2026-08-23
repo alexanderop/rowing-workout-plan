@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@effect/vitest'
 import { Result } from 'effect'
 
-import { PLAN_WEEKS, pete5k } from '@/features/training/catalog'
+import { pete5k } from '@/features/training/catalog'
 import { rotationFor } from '@/features/training/schedule'
 import { targetFor } from '@/features/training/targets'
 import type { PlanWeek } from '@/features/training/types'
@@ -20,6 +20,9 @@ import { targetInWeek, weekAt, weekRows } from '@/features/training/week'
 /** A 7:04.2 2k — the design canvas's rower, and the one `targets.spec.ts` uses. */
 const BENCHMARK_2K_MS = 424_200
 
+/** The plan's own length — plans carry `rotationWeeks` and generate their weeks from it. */
+const PLAN_WEEKS = pete5k.weeks.length
+
 const week3 = pete5k.weeks[2]
 /** A steady row: the same target in every rotation, so an unshifted baseline. */
 const session = week3.sessions[0]
@@ -30,38 +33,38 @@ describe('targetInWeek', () => {
   it('agrees with targetFor composed by hand', () => {
     // The whole point of the module: the three screens that used to write this
     // chain get the same number they used to compute.
-    const rotation = Result.getOrThrow(rotationFor(week3.index))
+    const rotation = Result.getOrThrow(rotationFor(pete5k, week3.index))
     const expected = Result.getOrThrow(targetFor(session, BENCHMARK_2K_MS, rotation))
 
-    expect(targetInWeek(session, BENCHMARK_2K_MS, week3.index)).toEqual(expected)
+    expect(targetInWeek(pete5k, session, BENCHMARK_2K_MS, week3.index)).toEqual(expected)
   })
 
   it('is null before a 2k has been entered', () => {
-    expect(targetInWeek(session, null, week3.index)).toBeNull()
+    expect(targetInWeek(pete5k, session, null, week3.index)).toBeNull()
   })
 
   it('is null for a week the plan does not have', () => {
     // The rotation table stops at the end of the plan, and a target for week
     // 13 would be a number invented for a week nobody can row.
-    expect(targetInWeek(session, BENCHMARK_2K_MS, PLAN_WEEKS + 1)).toBeNull()
-    expect(targetInWeek(session, BENCHMARK_2K_MS, 0)).toBeNull()
-    expect(targetInWeek(session, BENCHMARK_2K_MS, 1.5)).toBeNull()
+    expect(targetInWeek(pete5k, session, BENCHMARK_2K_MS, PLAN_WEEKS + 1)).toBeNull()
+    expect(targetInWeek(pete5k, session, BENCHMARK_2K_MS, 0)).toBeNull()
+    expect(targetInWeek(pete5k, session, BENCHMARK_2K_MS, 1.5)).toBeNull()
   })
 
   it('is null when the session cannot be priced', () => {
     // A 2k time `pace.ts` refuses: everything there divides by its inputs, so
     // "finite and above zero" is the precondition. The failure is swallowed to
     // `null` rather than surfaced — the row still lists the session.
-    expect(targetInWeek(session, -1, week3.index)).toBeNull()
-    expect(targetInWeek(session, Number.POSITIVE_INFINITY, week3.index)).toBeNull()
+    expect(targetInWeek(pete5k, session, -1, week3.index)).toBeNull()
+    expect(targetInWeek(pete5k, session, Number.POSITIVE_INFINITY, week3.index)).toBeNull()
   })
 
   it('re-paces a rotation-shifted session as the rotations advance', () => {
     // The plan's spine, seen through this function: within a rotation the
     // target holds while the reps get longer, between rotations it steps down.
-    const first = targetInWeek(shifted, BENCHMARK_2K_MS, 1)
-    const sameRotation = targetInWeek(shifted, BENCHMARK_2K_MS, 3)
-    const nextRotation = targetInWeek(shifted, BENCHMARK_2K_MS, 4)
+    const first = targetInWeek(pete5k, shifted, BENCHMARK_2K_MS, 1)
+    const sameRotation = targetInWeek(pete5k, shifted, BENCHMARK_2K_MS, 3)
+    const nextRotation = targetInWeek(pete5k, shifted, BENCHMARK_2K_MS, 4)
 
     expect(sameRotation?.splitMs).toBe(first?.splitMs)
     expect(nextRotation?.splitMs).toBeLessThan(first?.splitMs ?? 0)
@@ -70,7 +73,7 @@ describe('targetInWeek', () => {
   it('holds a steady target across every rotation', () => {
     // Steady is not a target to beat, so the rotation must not walk it faster.
     const splits = [1, 4, 7, 10].map(
-      (week) => targetInWeek(session, BENCHMARK_2K_MS, week)?.splitMs,
+      (week) => targetInWeek(pete5k, session, BENCHMARK_2K_MS, week)?.splitMs,
     )
 
     expect(new Set(splits).size).toBe(1)
@@ -78,7 +81,7 @@ describe('targetInWeek', () => {
 })
 
 describe('weekRows', () => {
-  const context = { benchmark2kMs: BENCHMARK_2K_MS, completedIds: new Set<string>() }
+  const context = { plan: pete5k, benchmark2kMs: BENCHMARK_2K_MS, completedIds: new Set<string>() }
 
   it('numbers the sessions from one, in plan order', () => {
     const rows = weekRows(week3, context)
@@ -89,7 +92,7 @@ describe('weekRows', () => {
 
   it('prices every row the way targetInWeek does', () => {
     for (const row of weekRows(week3, context)) {
-      expect(row.target).toEqual(targetInWeek(row.session, BENCHMARK_2K_MS, week3.index))
+      expect(row.target).toEqual(targetInWeek(pete5k, row.session, BENCHMARK_2K_MS, week3.index))
     }
   })
 
@@ -119,6 +122,13 @@ describe('weekRows', () => {
     expect(weekRows(null, context)).toEqual([])
   })
 
+  it('is empty for a plan that has not resolved', () => {
+    // The plan is what locates a week in the rotation cycle, so there is
+    // nothing to price without it — and a screen reading an atom has both
+    // nulls to get through before it can render.
+    expect(weekRows(week3, { ...context, plan: null })).toEqual([])
+  })
+
   it('prices against the week it is handed, not the plan order it sits in', () => {
     // A week carries its own index, and that index is what picks the rotation.
     // Relabelling week 3 as week 10 re-prices the rows that a rotation shifts —
@@ -126,8 +136,8 @@ describe('weekRows', () => {
     const relabelled: PlanWeek = { ...week3, index: 10 }
     const [row] = weekRows(relabelled, context).filter((one) => one.session.id === shifted.id)
 
-    expect(row.target).toEqual(targetInWeek(shifted, BENCHMARK_2K_MS, 10))
-    expect(row.target?.splitMs).not.toBe(targetInWeek(shifted, BENCHMARK_2K_MS, 3)?.splitMs)
+    expect(row.target).toEqual(targetInWeek(pete5k, shifted, BENCHMARK_2K_MS, 10))
+    expect(row.target?.splitMs).not.toBe(targetInWeek(pete5k, shifted, BENCHMARK_2K_MS, 3)?.splitMs)
   })
 })
 

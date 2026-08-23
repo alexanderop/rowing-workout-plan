@@ -217,6 +217,29 @@
   animation: slide-down-mobile 0.2s ease-in;
 }
 
+/* Reka Drawer owns the live swipe offset through `transform`. Enter/exit
+   therefore animate the independent `translate` property so a finger-driven
+   transform is never replaced mid-gesture. */
+@keyframes drawer-up {
+  from {
+    translate: 0 100%;
+  }
+}
+
+@keyframes drawer-down {
+  to {
+    translate: 0 100%;
+  }
+}
+
+@utility animate-drawer-up {
+  animation: drawer-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@utility animate-drawer-down {
+  animation: drawer-down 0.24s ease-in;
+}
+
 /* We ship the sheet keyframes above and a press transform on every button and
    tab in the app; a user who has asked the OS for less motion has asked for
    both. Scoped globally on purpose — an opt-in list is a list someone forgets

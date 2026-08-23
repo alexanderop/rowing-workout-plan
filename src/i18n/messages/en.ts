@@ -10,16 +10,21 @@ export default {
     buttons: {
       cancel: 'Cancel',
       close: 'Close',
-      next: 'Next',
+      confirm: 'Confirm value',
       save: 'Save',
     },
     aria: {
       goBack: 'Go back',
     },
   },
-  entryPad: {
-    label: 'Number pad for {field}',
+  numericInput: {
     backspace: 'Backspace',
+    currentValue: 'Current value',
+    decimal: 'Add decimal separator',
+    empty: 'Empty',
+    keypad: 'Keypad',
+    presets: 'Suggested values',
+    replaceMode: 'Replace mode: the next digit replaces the current value',
   },
   plans: {
     title: 'Plans',
@@ -43,7 +48,7 @@ export default {
     },
     // "Adapted", not "published": the sessions are built from the rotations
     // Pete describes, not transcribed from them — see the reasoning at the
-    // top of features/training/catalog.ts.
+    // top of features/training/catalog/pete5k.ts.
     source: 'Sessions are adapted from the training plans published at {sources}.',
     catalog: {
       pete5k: {
@@ -78,11 +83,13 @@ export default {
       pacedTwoK: 'Paced 2k, easy either side',
       distancePiece: 'Hard distance piece',
     },
-    // Where a week sits in the three-week cycle. The plan's ending wins over
-    // the rotation's — see `rotationNote`.
+    // Where a week sits in its plan's cycle. The plan's ending wins over the
+    // rotation's — see `rotationNote`. No sentence here names a position by
+    // ordinal: how long a rotation is belongs to the plan, so "second week"
+    // would print a confident wrong number for any plan not built in threes.
     rotation: {
       first: 'First week of rotation {rotation} — the shortest reps of the cycle, and the fastest.',
-      middle: 'Second week of rotation {rotation} — the reps lengthen at the same target.',
+      middle: 'Mid-rotation week of rotation {rotation} — the reps lengthen at the same target.',
       last: 'Last week of rotation {rotation} — the reps are at their longest. From week {nextWeek} the cycle restarts a touch faster.',
       final: 'Last week of the plan. Rotation {rotation} closes here.',
     },
@@ -180,15 +187,20 @@ export default {
     description: 'Type the numbers off the monitor.',
     distance: 'Distance in metres',
     distancePlaceholder: '10000',
+    distanceTitle: 'Distance',
+    distanceHelp: 'Pick a distance, or type one on the keypad.',
     time: 'Time',
     timePlaceholder: '43:07',
+    timeTitle: 'Time',
+    timeHelp: 'Type the minutes and seconds. The colon fills itself in.',
     rate: 'Rate in strokes per minute',
     ratePlaceholder: '24',
+    rateTitle: 'Rate',
+    rateHelp: 'Pick a rate, or type one on the keypad.',
     optional: 'optional',
     result: '{split} /500m · {watts} W',
-    invalidDistance: 'Enter the distance in whole metres',
-    invalidTime: 'Enter a time like 43:07',
-    invalidTimeRange: 'Time must be greater than zero',
+    missingDistance: 'Add the distance to work out your split',
+    missingTime: 'Add the time to work out your split',
     toast: {
       saved: 'Workout logged',
       saveFailed: 'That workout could not be saved',
@@ -199,6 +211,7 @@ export default {
     description: 'Your most recent 2,000 m time. Every session target is derived from it.',
     label: '2k time',
     placeholder: '7:04.2',
+    help: 'Type the minutes, seconds and tenths. The colon and the point fill themselves in.',
     pace: 'That is {split} per 500 m.',
     invalid: 'Enter a time like 7:04.2',
     current: 'Paced from your 2k of {time}',

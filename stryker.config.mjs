@@ -37,7 +37,7 @@ export default {
     'src/db/converters.ts',
     'src/db/backup.ts',
     'src/db/deleteAll.ts',
-    'src/features/*/catalog.ts',
+    'src/features/*/catalog/*.ts',
     'src/features/*/domain.ts',
     'src/features/*/entry.ts',
     'src/features/*/history.ts',

@@ -1,3 +1,5 @@
+import type { MessageSchema } from '@/i18n/types'
+
 /**
  * The vocabulary a training plan is written in.
  *
@@ -75,6 +77,22 @@ export interface PlanWeek {
 }
 
 /**
+ * The i18n key for a plan's description, narrowed to the keys that exist.
+ *
+ * `string` was the version of this that let a plan point at a message nobody
+ * wrote and print the raw key on a browse card. `i18nKeys.test.ts` does not
+ * close that hole either — it flags keys nothing *names*, not names with no
+ * key — so the type is where it gets closed: deleting
+ * `plans.catalog.pete5kLite` from `en.ts` is now a compile error at the plan
+ * that referenced it.
+ *
+ * The import is type-only, so nothing about the core's purity changes: no
+ * runtime edge is added and `@/i18n` is a shared layer a feature may read.
+ */
+export type PlanDescriptionKey =
+  `plans.catalog.${string & keyof MessageSchema['plans']['catalog']}.description`
+
+/**
  * A catalogue entry.
  *
  * `name` is a proper name and is never translated — "Pete Plan 5k" is what it
@@ -90,7 +108,17 @@ export interface PlanWeek {
 export interface Plan {
   readonly id: string
   readonly name: string
-  readonly descriptionKey: string
+  readonly descriptionKey: PlanDescriptionKey
   readonly source: string
+  /**
+   * The length of one pass through the plan's cycle, in weeks.
+   *
+   * Plan *length* is `weeks.length` and stays derived — a second field for it
+   * could disagree with the array — but the rotation is not derivable from the
+   * weeks, because the weeks are generated from it. `schedule.ts` locates a
+   * rower by this number, so it belongs to the plan rather than to the module
+   * that happens to lay one out.
+   */
+  readonly rotationWeeks: number
   readonly weeks: readonly PlanWeek[]
 }

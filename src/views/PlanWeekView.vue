@@ -36,6 +36,7 @@ const completedIds = computed(() => AsyncResult.getOrElse(completed.value, () =>
 // the same session.
 const rows = computed(() =>
   weekRows(week.value, {
+    plan: plan.value,
     benchmark2kMs: benchmark2kMs.value,
     completedIds: completedIds.value,
   }),

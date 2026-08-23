@@ -3,7 +3,7 @@ import { Result } from 'effect'
 import { rotationFor } from './schedule'
 import { targetFor } from './targets'
 import type { SessionTarget } from './targets'
-import type { PlanSession, PlanWeek } from './types'
+import type { Plan, PlanSession, PlanWeek } from './types'
 
 /**
  * A week of the plan, priced.
@@ -27,8 +27,8 @@ import type { PlanSession, PlanWeek } from './types'
  * The target for one session of one plan week, or `null`.
  *
  * Three ways to get nothing and one answer for all of them: no 2k has been
- * entered yet, the week is outside the plan's rotation table, or the pace
- * arithmetic could not price this session. A screen lists the session either
+ * entered yet, the week is not one this plan has, or the pace arithmetic
+ * could not price this session. A screen lists the session either
  * way — what you are meant to row does not depend on knowing how fast — so
  * distinguishing them would only push a decision outward that has one answer.
  *
@@ -37,6 +37,7 @@ import type { PlanSession, PlanWeek } from './types'
  * before it could call `targetFor`.
  */
 export function targetInWeek(
+  plan: Plan,
   session: PlanSession,
   benchmark2kMs: number | null,
   weekIndex: number,
@@ -44,7 +45,7 @@ export function targetInWeek(
   if (benchmark2kMs === null) return null
 
   return Result.getOrElse(
-    Result.flatMap(rotationFor(weekIndex), (rotation) =>
+    Result.flatMap(rotationFor(plan, weekIndex), (rotation) =>
       targetFor(session, benchmark2kMs, rotation),
     ),
     () => null,
@@ -62,6 +63,12 @@ export interface WeekRow {
 
 /** What a week's rows are derived from, beyond the week itself. */
 export interface WeekContext {
+  /**
+   * The plan the week belongs to — `rotationWeeks` is what locates it in the
+   * cycle. Nullable for the same reason the week is: a screen that has not
+   * resolved its plan yet renders nothing rather than guarding at the call site.
+   */
+  readonly plan: Plan | null
   readonly benchmark2kMs: number | null
   /** Plan-session ids with a workout logged against them — `progress.completedSessionIds`. */
   readonly completedIds: ReadonlySet<string>
@@ -77,16 +84,17 @@ export interface WeekContext {
  * screens cannot drift — and because it is core, the ordering and the
  * position numbering are unit-tested rather than eyeballed.
  *
- * A missing week is an empty list rather than a failure: a screen that has
- * not resolved its week yet renders nothing, which is what it wants.
+ * A missing week or plan is an empty list rather than a failure: a screen that
+ * has not resolved them yet renders nothing, which is what it wants.
  */
 export function weekRows(week: PlanWeek | null, context: WeekContext): ReadonlyArray<WeekRow> {
-  if (week === null) return []
+  const { plan } = context
+  if (week === null || plan === null) return []
 
   return week.sessions.map((session, index) => ({
     session,
     position: index + 1,
-    target: targetInWeek(session, context.benchmark2kMs, week.index),
+    target: targetInWeek(plan, session, context.benchmark2kMs, week.index),
     done: context.completedIds.has(session.id),
   }))
 }

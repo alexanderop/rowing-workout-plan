@@ -88,9 +88,10 @@ const week = computed(() => {
 const target = computed(() => {
   const current = session.value
   const at = position.value
-  if (current === null || at === null) return null
+  const plan = activePlan.value
+  if (current === null || at === null || plan === null) return null
 
-  return targetInWeek(current, benchmark2kMs.value, at.weekIndex)
+  return targetInWeek(plan, current, benchmark2kMs.value, at.weekIndex)
 })
 
 // The same rule the week list underneath uses, so one screen cannot print two
@@ -119,6 +120,7 @@ const durationText = computed(() => {
 // and the list below cannot price one session two ways.
 const rows = computed(() =>
   weekRows(week.value, {
+    plan: activePlan.value,
     benchmark2kMs: benchmark2kMs.value,
     completedIds: completedIds.value,
   }),

@@ -33,7 +33,6 @@ const SPLIT_DISTANCE_M = 500
 const POWER_CONSTANT = 2.8
 
 const MS_PER_SECOND = 1000
-const SECONDS_PER_MINUTE = 60
 const DECISECONDS_PER_MINUTE = 600
 
 /**
@@ -50,15 +49,6 @@ export class PaceRangeError extends Schema.TaggedError<PaceRangeError>()(
   {
     field: Schema.String,
     value: Schema.Number,
-  },
-) {}
-
-/** Text that is not a split. Separate from the range failure because the fix
- * a user needs differs: one is a typo, the other is an impossible number. */
-export class SplitFormatError extends Schema.TaggedError<SplitFormatError>()(
-  'Training.SplitFormatError',
-  {
-    input: Schema.String,
   },
 ) {}
 
@@ -149,40 +139,6 @@ export function formatSplit(splitMs: number): Result.Result<string, PaceRangeErr
     const minutes = Math.floor(deciseconds / DECISECONDS_PER_MINUTE)
     const seconds = (deciseconds % DECISECONDS_PER_MINUTE) / 10
     return `${minutes}:${seconds.toFixed(1).padStart(4, '0')}`
-  })
-}
-
-/**
- * `m:ss` with an optional fraction, which is what the PM5 shows and therefore
- * what a rower types. Anchored, with the seconds field fixed at two digits:
- * `1:5.4` is a slip, not a 1:05.4, and guessing which would put a wrong pace
- * on screen without ever saying so.
- */
-const SPLIT_PATTERN = /^\d+:[0-5]\d(?:\.\d+)?$/
-
-/**
- * The inverse of {@link formatSplit}, to milliseconds.
- *
- * Two failures, because a user has two different mistakes to fix: `9:9` is a
- * typo, `0:00.0` is well-formed and still not a pace.
- */
-export function parseSplit(text: string): Result.Result<number, PaceRangeError | SplitFormatError> {
-  return Result.gen(function* () {
-    const trimmed = text.trim()
-    if (!SPLIT_PATTERN.test(trimmed))
-      return yield* Result.fail(new SplitFormatError({ input: text }))
-
-    // Split at the colon rather than read the pattern's capture groups: those
-    // come back as `string | undefined`, and the `?? ''` that satisfies the
-    // compiler is a branch the pattern has already made unreachable — dead
-    // code no test can reach and no reader can discount.
-    const colon = trimmed.indexOf(':')
-    const totalSeconds =
-      Number(trimmed.slice(0, colon)) * SECONDS_PER_MINUTE + Number(trimmed.slice(colon + 1))
-
-    // Rounded because 112.4 * 1000 is 112400.00000000001 in binary floating
-    // point, and a split is an integer number of milliseconds.
-    return yield* requirePositive('splitMs', Math.round(totalSeconds * MS_PER_SECOND))
   })
 }
 

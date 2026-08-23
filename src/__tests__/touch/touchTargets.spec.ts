@@ -166,7 +166,7 @@ describe('touch targets', () => {
   it('clears the floor in the log-a-row sheet', async ({ log }) => {
     const screen = await log()
     await screen.logRow()
-    await screen.sheet.openTimePad()
+    await screen.sheet.openPad('time')
 
     const undersized = await undersizedControls(document.body)
     expect(undersized, report(undersized)).toEqual([])

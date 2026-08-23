@@ -43,7 +43,7 @@ const INTERPOLATED = {
   },
   'features/training/components/PlanCard.vue': {
     reason:
-      'A plan carries its own description key (features/training/catalog.ts holds them as literals, and the Plan type makes one mandatory), so a plan cannot ship without a description and the usage check below still sees the keys.',
+      'A plan carries its own description key (each plan file under features/training/catalog/ holds one as a literal, and the Plan type makes one mandatory), so a plan cannot ship without a description and the usage check below still sees the keys.',
     keys: [],
   },
   'features/training/components/SessionRow.vue': {

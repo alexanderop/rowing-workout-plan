@@ -112,14 +112,21 @@ describe('logging a session', () => {
     await session.sheet.expectResult('2:06.0 /500m · 175 W')
   })
 
-  it('refuses to save a time that is not a time', async ({ sessionDetail }) => {
+  it('refuses to save a row with half its numbers, and says which half', async ({
+    sessionDetail,
+  }) => {
+    // `42:7` is not enterable any more — the pad fills from the right — so
+    // the mistake left to make is leaving a field alone. A Save that will not
+    // press and will not say why reads as the app being broken.
     const session = await sessionDetail('pete5k-w1-s1', SEED)
     await session.logSession()
 
-    await session.sheet.fill({ distance: '10000', time: '42:7' })
+    await session.sheet.fill({ distance: '10000' })
 
     await session.sheet.expectSaveDisabled()
-    await expect.element(session.sheet.anyDialog.getByText('Enter a time like 43:07')).toBeVisible()
+    await expect
+      .element(session.sheet.anyDialog.getByText('Add the time to work out your split'))
+      .toBeVisible()
   })
 
   it('marks the session logged when you come back to it', async ({ sessionDetail }) => {

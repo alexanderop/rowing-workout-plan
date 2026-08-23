@@ -20,6 +20,7 @@ There is no `CLAUDE.md` and no `AGENTS.md`. A `SessionStart` hook (`.claude/hook
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | [Local-first](local-first.md)                           | Deciding whether something belongs on-device, or why the converter/migration pair exists                                                   |
 | [Adding a feature](adding-a-feature.md)                 | Building a new feature, for the build order and the test home for each step                                                                |
+| [Adding a plan](adding-a-plan.md)                       | Adding or editing a training plan in the catalogue                                                                                         |
 | [Functional core, imperative shell](functional-core.md) | Deciding where a piece of logic lives (a component, a composable, a plain `.ts` module), or hitting a complexity/determinism lint rule     |
 | [Writing composables](composables.md)                   | Adding or changing anything under `src/composables/` or `src/features/*/use*.ts`: what it takes, what it returns, how its effects clean up |
 | [Testing strategy](testing-strategy.md)                 | Choosing which tier a test belongs in, or whether to write a property                                                                      |
@@ -30,6 +31,7 @@ There is no `CLAUDE.md` and no `AGENTS.md`. A `SessionStart` hook (`.claude/hook
 | [Atomic design](atomic-design.md)                       | Adding a shared component, or deciding which tier of `src/components/` it belongs in                                                       |
 | [UI components](ui-components.md)                       | Writing a primitive: the five moves in every file, or wondering why a component takes `class`                                              |
 | [Touch conventions](touch-conventions.md)               | Anything a finger touches: a new control, the app shell, a safe-area inset, a sheet                                                        |
+| [Number entry](number-entry.md)                         | Adding or configuring a field a number is typed into: the masks, the pad, and why there is no text input                                   |
 | [Effect](effect/index.md)                               | Any Effect work. It is the branch chooser into the per-topic concepts                                                                      |
 | [Writing oxlint rules](oxlint-rules.md)                 | Adding or changing a lint rule in `tools/oxlint/`, or deciding whether a rule is the right enforcement tier at all                         |
 | [Capturing PM5 frames](pm5-capture.md)                  | Recording raw Bluetooth frames off an erg into fixtures — and the secure-context problem that stops it working from a phone                |
