@@ -20,6 +20,7 @@ There is no `CLAUDE.md` and no `AGENTS.md`. A `SessionStart` hook (`.claude/hook
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | [Local-first](local-first.md)                           | Deciding whether something belongs on-device, or why the converter/migration pair exists                                                   |
 | [Adding a feature](adding-a-feature.md)                 | Building a new feature, for the build order and the test home for each step                                                                |
+| [Adding a plan](adding-a-plan.md)                       | Adding or editing a training plan in the catalogue                                                                                         |
 | [Functional core, imperative shell](functional-core.md) | Deciding where a piece of logic lives (a component, a composable, a plain `.ts` module), or hitting a complexity/determinism lint rule     |
 | [Writing composables](composables.md)                   | Adding or changing anything under `src/composables/` or `src/features/*/use*.ts`: what it takes, what it returns, how its effects clean up |
 | [Testing strategy](testing-strategy.md)                 | Choosing which tier a test belongs in, or whether to write a property                                                                      |
