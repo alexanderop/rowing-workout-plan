@@ -29,12 +29,7 @@ const completed = useAtomValue(() => completedSessionsAtom)
 const benchmark2kMs = computed(
   () => AsyncResult.getOrElse(benchmark.value, () => null)?.timeMs ?? null,
 )
-const completedIds = computed(() =>
-  // SAFETY: the widening is from `Set<string>` to `ReadonlySet<string>`, which
-  // is the atom's own success type — it only stops the empty fallback from
-  // narrowing the computed to a mutable Set. Nothing is claimed about content.
-  AsyncResult.getOrElse(completed.value, () => new Set<string>() as ReadonlySet<string>),
-)
+const completedIds = computed(() => AsyncResult.getOrElse(completed.value, () => new Set<string>()))
 
 // Positions, targets and the done flags are one core function, shared with
 // Today: two screens listing one week cannot print two different answers for
