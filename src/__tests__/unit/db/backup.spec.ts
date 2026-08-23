@@ -118,6 +118,28 @@ describe('the backup programs', () => {
     }).pipe(Effect.provide(dbTestLayer)),
   )
 
+  it.effect('leaves exactly one enrolment active after importing over an existing one', () =>
+    Effect.gen(function* () {
+      // Enrol locally, then restore a backup carrying an active enrolment of
+      // its own. A plain bulk put lands the backup's row *beside* the local
+      // one and both claim to be the plan you are on.
+      //
+      // This lived only in the browser tier until the in-memory enrolments
+      // table enforced the invariant its real counterpart does. It is the
+      // property, not the storage engine, so it belongs here too — the
+      // transaction that makes it atomic is still asserted against real
+      // IndexedDB in `src/__tests__/db/backup.spec.ts`.
+      const local = yield* EnrolmentsRepo.use((repo) => repo.create({ planId: 'pete5k' }))
+      yield* importData(FULL_BACKUP)
+
+      const enrolments = yield* EnrolmentsRepo.use((repo) => repo.list())
+      expect(enrolments.filter((row) => row.active).map((row) => row.id)).toEqual(['enrol-1'])
+      // The local row is kept, just no longer active: a backup restores what
+      // it holds, it does not delete what it does not.
+      expect(enrolments.find((row) => row.id === local.id)?.active).toBe(false)
+    }).pipe(Effect.provide(dbTestLayer)),
+  )
+
   it.effect('normalizes a historical row on the way in', () =>
     Effect.gen(function* () {
       // A workout written before the app recorded intervals or knew where a

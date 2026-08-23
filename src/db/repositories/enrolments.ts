@@ -1,26 +1,32 @@
-import { Clock, Context, Effect, Layer, Ref } from 'effect'
+import { Clock, Context, Effect, Layer } from 'effect'
 import type { PlanEnrolment, PlanEnrolmentDraft } from '../converters'
 import { decodeEnrolmentDraft, decodeStoredEnrolment, toEnrolment } from '../converters'
 import { DatabaseError, EnrolmentInvalidError } from '../errors'
 import { GenerateId } from '../generateId'
 import { db } from '../schema'
-import { tryDb } from './support'
+import { draftValidator, inMemoryTable, rowDecoder, tryDb } from './support'
 
 export type { PlanEnrolmentDraft } from '../converters'
 
-const validateDraft = (
-  draft: PlanEnrolmentDraft,
-): Effect.Effect<PlanEnrolmentDraft, EnrolmentInvalidError> =>
-  decodeEnrolmentDraft(draft).pipe(
-    Effect.mapError((error) => new EnrolmentInvalidError({ message: error.message })),
-  )
+const validateDraft = draftValidator(
+  decodeEnrolmentDraft,
+  (message) => new EnrolmentInvalidError({ message }),
+)
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- the decode boundary itself
-const decodeRow = (stored: unknown): Effect.Effect<PlanEnrolment, DatabaseError> =>
-  decodeStoredEnrolment(stored).pipe(
-    Effect.mapError((cause) => new DatabaseError({ operation: 'decode enrolment row', cause })),
-    Effect.map(toEnrolment),
-  )
+const decodeRow = rowDecoder('decode enrolment row', decodeStoredEnrolment, toEnrolment)
+
+/** See `BenchmarksRepo`'s `buildBenchmark` — both layers mint a row the same way. */
+const buildEnrolment = (
+  generateId: () => string,
+): ((draft: PlanEnrolmentDraft) => Effect.Effect<PlanEnrolment, EnrolmentInvalidError>) =>
+  Effect.fn('EnrolmentsRepo.build')(function* (draft: PlanEnrolmentDraft) {
+    const valid = yield* validateDraft(draft)
+    const now = yield* Clock.currentTimeMillis
+    return { id: generateId(), planId: valid.planId, startedAt: now, active: true }
+  })
+
+/** The invariant, as a rewrite of every row already in the table. */
+const deactivated = (row: PlanEnrolment): PlanEnrolment => ({ ...row, active: false })
 
 /**
  * Enrolments: which plan a rower is on.
@@ -48,7 +54,7 @@ export class EnrolmentsRepo extends Context.Service<
   static readonly layer = Layer.effect(
     EnrolmentsRepo,
     Effect.gen(function* () {
-      const generateId = yield* GenerateId
+      const build = buildEnrolment(yield* GenerateId)
 
       return EnrolmentsRepo.of({
         list: Effect.fn('EnrolmentsRepo.list')(function* () {
@@ -57,14 +63,7 @@ export class EnrolmentsRepo extends Context.Service<
         }),
 
         create: Effect.fn('EnrolmentsRepo.create')(function* (draft: PlanEnrolmentDraft) {
-          const valid = yield* validateDraft(draft)
-          const now = yield* Clock.currentTimeMillis
-          const enrolment: PlanEnrolment = {
-            id: generateId(),
-            planId: valid.planId,
-            startedAt: now,
-            active: true,
-          }
+          const enrolment = yield* build(draft)
           // The transaction callback stays pure Dexie — foreign promises (and
           // Effect yields) inside it would break the transaction.
           yield* tryDb('create enrolment', () =>
@@ -110,55 +109,36 @@ export class EnrolmentsRepo extends Context.Service<
     }),
   )
 
-  /** See `BenchmarksRepo.testLayer` — same contract, same semantics. */
+  /**
+   * The in-memory fake. `create` is the only operation with a semantic of its
+   * own to keep: the deactivation rides along as `insert`'s rewrite, so the
+   * fake enforces the one-active invariant in a single `Ref.update` the way
+   * the real one enforces it in a single transaction.
+   */
   static readonly testLayer = Layer.effect(
     EnrolmentsRepo,
     Effect.gen(function* () {
-      const rows = yield* Ref.make<ReadonlyMap<string, PlanEnrolment>>(new Map())
-      const generateId = yield* GenerateId
+      const table = yield* inMemoryTable<PlanEnrolment>('EnrolmentsRepo')
+      const build = buildEnrolment(yield* GenerateId)
 
       return EnrolmentsRepo.of({
-        list: Effect.fn('EnrolmentsRepo.Test.list')(function* () {
-          return [...(yield* Ref.get(rows)).values()]
-        }),
+        ...table,
 
         create: Effect.fn('EnrolmentsRepo.Test.create')(function* (draft: PlanEnrolmentDraft) {
-          const valid = yield* validateDraft(draft)
-          const now = yield* Clock.currentTimeMillis
-          const enrolment: PlanEnrolment = {
-            id: generateId(),
-            planId: valid.planId,
-            startedAt: now,
-            active: true,
-          }
-          yield* Ref.update(rows, (current) => {
-            const next = new Map<string, PlanEnrolment>()
-            for (const [id, row] of current) next.set(id, { ...row, active: false })
-            return next.set(enrolment.id, enrolment)
-          })
+          const enrolment = yield* build(draft)
+          yield* table.insert(enrolment, deactivated)
           return enrolment
         }),
 
-        remove: Effect.fn('EnrolmentsRepo.Test.remove')(function* (id: string) {
-          yield* Ref.update(rows, (current) => {
-            const next = new Map(current)
-            next.delete(id)
-            return next
-          })
-        }),
-
+        // The fake used not to deactivate on import, which made it the one
+        // place the one-active invariant did not hold — so the only tier that
+        // could catch a double-active restore was the browser one, against
+        // real IndexedDB. It holds here now, and `unit/db/backup.spec.ts`
+        // asserts it in 100 ms.
         putMany: Effect.fn('EnrolmentsRepo.Test.putMany')(function* (
-          incoming: ReadonlyArray<PlanEnrolment>,
+          rows: ReadonlyArray<PlanEnrolment>,
         ) {
-          yield* Ref.update(rows, (current) => {
-            const next = new Map(current)
-            for (const row of incoming) next.set(row.id, row)
-            return next
-          })
-        }),
-
-        clear: Effect.fn('EnrolmentsRepo.Test.clear')(function* () {
-          yield* Ref.set(rows, new Map())
+          yield* table.putMany(rows, deactivated)
         }),
       })
     }),
