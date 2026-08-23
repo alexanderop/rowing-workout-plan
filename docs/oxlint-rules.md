@@ -232,7 +232,7 @@ export const decodeBackup = (payload: unknown) => …
 **The directive has to be the line immediately above the code.** A `--` reason
 that wraps onto a second `//` line silently moves the target down one line and
 the suppression stops working. Put the prose in a comment _above_ the
-directive and keep the reason after `--` short. There are four suppressions in
+directive and keep the reason after `--` short. There are five suppressions in
 this repo today (`src/db/backup.ts` ×2, `src/db/repositories/support.ts` ×2,
 `src/lib/backupFile.ts`) and they are all the same case: the schema decode
 boundary, where `unknown` is the correct type and a named one would be the
