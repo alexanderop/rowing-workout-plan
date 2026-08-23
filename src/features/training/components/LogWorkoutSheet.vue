@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useAtomSet } from '@effect/atom-vue'
 import { Effect, Result } from 'effect'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,9 +12,10 @@ import {
   MoleculeDialogHeader,
   MoleculeDialogTitle,
 } from '@/components/molecules/dialog'
+import { useDbWrite } from '@/composables/useDbWrite'
 import { useReportFailure } from '@/composables/useReportFailure'
 import type { WorkoutDraft } from '@/db'
-import { dbMutation, logWorkout } from '@/db'
+import { logWorkout } from '@/db'
 import { useToastStore } from '@/stores/toast'
 import type { DurationFormatError, DurationRangeError } from '../history'
 import { parseDuration } from '../history'
@@ -49,8 +49,11 @@ const toast = useToastStore()
 const distance = ref('')
 const time = ref('')
 const rate = ref('')
-// In-flight guard: a double-tap on Save would otherwise log the row twice.
-const isSaving = ref(false)
+
+// The write edge, with the in-flight guard: a double-tap on Save would
+// otherwise log the row twice. The mutation invalidates both reactivity keys
+// once it lands — the log, the plan's progress and Today all re-read.
+const { isWriting, write } = useDbWrite()
 
 // Prefilled on open rather than on mount: the sheet is mounted for the life
 // of the screen and opened repeatedly, and last time's draft is not what
@@ -101,12 +104,7 @@ const showInvalidTime = computed(
 // disabled, which reads as the app being broken rather than the entry being.
 const showInvalidDistance = computed(() => distance.value.trim() !== '' && !(distanceM_.value > 0))
 
-const canSave = computed(() => resultText.value !== '' && !isSaving.value)
-
-// The write edge: only accepts a program whose failures are already handled,
-// and invalidates both reactivity keys once the write lands — the log, the
-// plan's progress and Today all re-read from disk.
-const runMutation = useAtomSet(() => dbMutation, { mode: 'promise' })
+const canSave = computed(() => resultText.value !== '' && !isWriting.value)
 
 // The shared failure branch: a structured log for the developer, a toast for
 // the user — see useReportFailure for why it is an Effect.
@@ -166,11 +164,10 @@ async function save(): Promise<void> {
   // compiler rather than for the user — and it is the honest way to narrow,
   // since a `getOrThrow` here would make an unreachable branch a crash.
   if (!canSave.value || !Result.isSuccess(built)) return
-  isSaving.value = true
 
   const failed = reportFailure('save workout', t('logSheet.toast.saveFailed'))
 
-  await runMutation(
+  await write(
     logWorkout(built.success).pipe(
       Effect.tap(() =>
         Effect.sync(() => {
@@ -179,13 +176,6 @@ async function save(): Promise<void> {
         }),
       ),
       Effect.catchTags({ 'Db.DatabaseError': failed, 'Db.WorkoutInvalidError': failed }),
-      // Outermost, so the guard is released on both branches — and on an
-      // interrupt, which a plain success/failure handler would miss.
-      Effect.ensuring(
-        Effect.sync(() => {
-          isSaving.value = false
-        }),
-      ),
     ),
   )
 }

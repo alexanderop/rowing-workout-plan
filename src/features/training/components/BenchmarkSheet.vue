@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AsyncResult, useAtomSet, useAtomValue } from '@effect/atom-vue'
+import { AsyncResult, useAtomValue } from '@effect/atom-vue'
 import { Effect, Result } from 'effect'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,8 +13,9 @@ import {
   MoleculeDialogHeader,
   MoleculeDialogTitle,
 } from '@/components/molecules/dialog'
+import { useDbWrite } from '@/composables/useDbWrite'
 import { useReportFailure } from '@/composables/useReportFailure'
-import { dbMutation, recordBenchmark } from '@/db'
+import { recordBenchmark } from '@/db'
 import { useToastStore } from '@/stores/toast'
 import { benchmarkAtom } from '../atoms'
 import { formatSplit, parseSplit } from '../pace'
@@ -44,9 +45,12 @@ const currentText = computed(() =>
 )
 
 const input = ref('')
-// In-flight guard: a double-tap on Save would otherwise record two benchmarks
-// before the first write resolves.
-const isSaving = ref(false)
+
+// The write edge, with the in-flight guard: a double-tap on Save would
+// otherwise record two benchmarks before the first write resolves. The
+// mutation invalidates the training key once it lands — every target on every
+// screen re-derives itself, with no store re-read.
+const { isWriting, write } = useDbWrite()
 
 // Prefilled on open rather than on mount, because the sheet outlives its
 // contents — it is mounted for the life of the screen and opened repeatedly,
@@ -74,7 +78,7 @@ const paceText = computed(() =>
 // Only complain about text the user has actually typed — an empty field is
 // not yet a mistake.
 const showInvalid = computed(() => input.value.trim() !== '' && !Result.isSuccess(parsed.value))
-const canSave = computed(() => Result.isSuccess(parsed.value) && !isSaving.value)
+const canSave = computed(() => Result.isSuccess(parsed.value) && !isWriting.value)
 
 // The field describes itself with whichever line is actually rendered — a
 // dangling `aria-describedby` points a screen reader at nothing at all.
@@ -83,27 +87,19 @@ const describedBy = computed(() => {
   return paceText.value === '' ? undefined : 'benchmark-pace'
 })
 
-// The write edge: only accepts a program whose failures are already handled,
-// and invalidates the training key once the write lands — every target on
-// every screen re-derives itself, with no store re-read.
-const runMutation = useAtomSet(() => dbMutation, { mode: 'promise' })
-
 // The shared failure branch: a structured log for the developer, a toast for
 // the user — see useReportFailure for why it is an Effect.
 const reportFailure = useReportFailure('benchmark')
 
 /**
- * The guard is set synchronously, before the first await, so two submits in
- * the same tick cannot both reach the repository. The mutation promise is
- * awaited (and so returned to Vue): with both failures caught by tag, a
- * rejection can only be a defect, which Vue routes to
- * `app.config.errorHandler`.
+ * The mutation promise is awaited (and so returned to Vue): with both failures
+ * caught by tag, a rejection can only be a defect, which Vue routes to
+ * `app.config.errorHandler`. `useDbWrite` holds the guard for its duration.
  */
 async function save(): Promise<void> {
   if (!canSave.value) return
-  isSaving.value = true
 
-  await runMutation(
+  await write(
     recordBenchmark({ kind: '2k', timeMs: Result.getOrElse(parsed.value, () => 0) }).pipe(
       Effect.tap(() =>
         Effect.sync(() => {
@@ -118,13 +114,6 @@ async function save(): Promise<void> {
         'Db.DatabaseError': reportFailure('save benchmark', t('benchmark.toast.saveFailed')),
         'Db.BenchmarkInvalidError': reportFailure('save benchmark', t('benchmark.invalid')),
       }),
-      // Outermost, so the guard is released on both branches — and on an
-      // interrupt, which a plain success/failure handler would miss.
-      Effect.ensuring(
-        Effect.sync(() => {
-          isSaving.value = false
-        }),
-      ),
     ),
   )
 }

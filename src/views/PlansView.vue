@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { AsyncResult, useAtomSet, useAtomValue } from '@effect/atom-vue'
+import { AsyncResult, useAtomValue } from '@effect/atom-vue'
 import { Effect, Result } from 'effect'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AtomButton from '@/components/atoms/AtomButton.vue'
 import TemplatePageLayout from '@/components/templates/TemplatePageLayout.vue'
+import { useDbWrite } from '@/composables/useDbWrite'
 import { useReportFailure } from '@/composables/useReportFailure'
-import { dbMutation, enrolInPlan } from '@/db'
+import { enrolInPlan } from '@/db'
 import { activePlanAtom, benchmarkAtom, completedSessionsAtom } from '@/features/training/atoms'
 import { PLANS } from '@/features/training/catalog'
 import ActivePlanCard from '@/features/training/components/ActivePlanCard.vue'
@@ -56,10 +57,11 @@ const sources = computed(() => [...new Set(PLANS.map((plan) => plan.source))].jo
 
 const sheetOpen = ref(false)
 
-// The write edge: only accepts a program whose failures are already handled,
-// and invalidates the training key once the write lands — the active card and
-// the browse list both re-read from disk.
-const runMutation = useAtomSet(() => dbMutation, { mode: 'promise' })
+// The write edge, with the in-flight guard — the whole card is the control,
+// so a double tap used to enrol twice and leave a dead enrolment row behind
+// the live one. Invalidates the training key once the write lands, so the
+// active card and the browse list both re-read from disk.
+const { write } = useDbWrite()
 
 // The shared failure branch: a structured log for the developer, a toast for
 // the user — see useReportFailure for why it is an Effect.
@@ -73,7 +75,7 @@ const reportFailure = useReportFailure('plans')
 async function handleEnrol(plan: Plan): Promise<void> {
   const failed = reportFailure('enrol in plan', t('plans.toast.enrolFailed'))
 
-  await runMutation(
+  await write(
     enrolInPlan({ planId: plan.id }).pipe(
       Effect.tap(() =>
         Effect.sync(() => toast.showToast(t('plans.toast.enrolled', { name: plan.name }))),
