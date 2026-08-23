@@ -10,10 +10,8 @@ import { PLANS } from '@/features/training/catalog'
 import SessionRow from '@/features/training/components/SessionRow.vue'
 import WeekStrip from '@/features/training/components/WeekStrip.vue'
 import { kilometres, weekDistanceM } from '@/features/training/session'
-import { rotationFor, rotationNote } from '@/features/training/schedule'
-import { targetFor } from '@/features/training/targets'
-import type { SessionTarget } from '@/features/training/targets'
-import type { PlanSession } from '@/features/training/types'
+import { rotationNote } from '@/features/training/schedule'
+import { weekAt, weekRows } from '@/features/training/week'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -23,9 +21,7 @@ const route = useRoute()
 // whether or not you are on that plan.
 const plan = computed(() => PLANS.find((candidate) => candidate.id === route.params.planId) ?? null)
 const weekIndex = computed(() => Number(route.params.week))
-const week = computed(
-  () => plan.value?.weeks.find((candidate) => candidate.index === weekIndex.value) ?? null,
-)
+const week = computed(() => weekAt(plan.value?.weeks ?? [], weekIndex.value))
 
 const benchmark = useAtomValue(() => benchmarkAtom)
 const completed = useAtomValue(() => completedSessionsAtom)
@@ -40,32 +36,14 @@ const completedIds = computed(() =>
   AsyncResult.getOrElse(completed.value, () => new Set<string>() as ReadonlySet<string>),
 )
 
-/**
- * The target for one session, or `null`.
- *
- * Two ways to get nothing and one answer for both: no 2k has been entered
- * yet, or this week is outside the rotation table. The row lists the session
- * either way — what you are meant to row does not depend on knowing how fast.
- */
-function targetOf(session: PlanSession): SessionTarget | null {
-  const benchmarkMs = benchmark2kMs.value
-  if (benchmarkMs === null) return null
-
-  return Result.getOrElse(
-    Result.flatMap(rotationFor(weekIndex.value), (rotation) =>
-      targetFor(session, benchmarkMs, rotation),
-    ),
-    () => null,
-  )
-}
-
+// Positions, targets and the done flags are one core function, shared with
+// Today: two screens listing one week cannot print two different answers for
+// the same session.
 const rows = computed(() =>
-  (week.value?.sessions ?? []).map((session, index) => ({
-    session,
-    position: index + 1,
-    target: targetOf(session),
-    done: completedIds.value.has(session.id),
-  })),
+  weekRows(week.value, {
+    benchmark2kMs: benchmark2kMs.value,
+    completedIds: completedIds.value,
+  }),
 )
 
 const summary = computed(() =>

@@ -11,7 +11,7 @@ import { PLANS } from '@/features/training/catalog'
 import LogWorkoutSheet from '@/features/training/components/LogWorkoutSheet.vue'
 import TargetsCard from '@/features/training/components/TargetsCard.vue'
 import { formatSplit } from '@/features/training/pace'
-import { rotationFor, rotationNote } from '@/features/training/schedule'
+import { rotationNote } from '@/features/training/schedule'
 import {
   describeSession,
   findSession,
@@ -20,7 +20,8 @@ import {
   pieceDistanceM,
   sessionDistanceM,
 } from '@/features/training/session'
-import { isRotationShifted, targetFor } from '@/features/training/targets'
+import { isRotationShifted } from '@/features/training/targets'
+import { targetInWeek } from '@/features/training/week'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -79,15 +80,9 @@ const subtitle = computed(() => {
 /** The whole point of the screen, and `null` until there is a 2k to derive it from. */
 const target = computed(() => {
   const current = location.value
-  const benchmarkMs = benchmark2kMs.value
-  if (current === null || benchmarkMs === null) return null
+  if (current === null) return null
 
-  return Result.getOrElse(
-    Result.flatMap(rotationFor(current.week.index), (rotation) =>
-      targetFor(current.session, benchmarkMs, rotation),
-    ),
-    () => null,
-  )
+  return targetInWeek(current.session, benchmark2kMs.value, current.week.index)
 })
 
 /** One piece of this session, written out — the same distance on every row. */
