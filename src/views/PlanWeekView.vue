@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { AsyncResult, useAtomValue } from '@effect/atom-vue'
-import { Result } from 'effect'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -10,10 +9,11 @@ import { PLANS } from '@/features/training/catalog'
 import SessionRow from '@/features/training/components/SessionRow.vue'
 import WeekStrip from '@/features/training/components/WeekStrip.vue'
 import { kilometres, weekDistanceM } from '@/features/training/session'
-import { rotationNote } from '@/features/training/schedule'
+import { useRotationText } from '@/features/training/useRotationText'
 import { weekAt, weekRows } from '@/features/training/week'
 
 const { t } = useI18n()
+const { rotationText: rotationSentence } = useRotationText()
 const route = useRoute()
 
 // The plan comes from the bundled catalogue, not from the database — an
@@ -61,14 +61,7 @@ const summary = computed(() =>
  */
 const rotationText = computed(() => {
   const current = plan.value
-  if (current === null) return ''
-
-  return Result.getOrElse(
-    Result.map(rotationNote(current, weekIndex.value), (note) =>
-      t(`plans.rotation.${note.variant}`, { rotation: note.rotation, nextWeek: note.nextWeek }),
-    ),
-    () => '',
-  )
+  return current === null ? '' : rotationSentence.value(current, weekIndex.value)
 })
 
 const title = computed(() => t('plans.week.title', { week: weekIndex.value }))

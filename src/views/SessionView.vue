@@ -11,7 +11,6 @@ import { PLANS } from '@/features/training/catalog'
 import LogWorkoutSheet from '@/features/training/components/LogWorkoutSheet.vue'
 import TargetsCard from '@/features/training/components/TargetsCard.vue'
 import { formatSplit } from '@/features/training/pace'
-import { rotationNote } from '@/features/training/schedule'
 import {
   describeSession,
   findSession,
@@ -21,9 +20,11 @@ import {
   sessionDistanceM,
 } from '@/features/training/session'
 import { isRotationShifted } from '@/features/training/targets'
+import { useRotationText } from '@/features/training/useRotationText'
 import { targetInWeek } from '@/features/training/week'
 
 const { t } = useI18n()
+const { coachText: coachSentence } = useRotationText()
 const route = useRoute()
 
 // The session id names exactly one session in exactly one plan, so the whole
@@ -119,12 +120,7 @@ const coachText = computed(() => {
   const current = location.value
   if (current === null || !isRotationShifted(current.session.kind)) return ''
 
-  return Result.getOrElse(
-    Result.map(rotationNote(current.plan, current.week.index), (note) =>
-      t(`plans.coach.${note.variant}`, { rotation: note.rotation, nextWeek: note.nextWeek }),
-    ),
-    () => '',
-  )
+  return coachSentence.value(current.plan, current.week.index)
 })
 
 const backTo = computed(() => {
