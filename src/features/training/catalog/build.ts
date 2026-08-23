@@ -1,4 +1,4 @@
-import type { Plan, PlanSession, PlanWeek } from '../types'
+import type { Plan, PlanDescriptionKey, PlanSession, PlanWeek } from '../types'
 
 /**
  * How a plan is put together, and the vocabulary it is written in.
@@ -110,7 +110,7 @@ export function rotating({
 export interface PlanSpec {
   readonly id: string
   readonly name: string
-  readonly descriptionKey: string
+  readonly descriptionKey: PlanDescriptionKey
   readonly source: string
   readonly rotationWeeks: number
   /** The weeks, from {@link rotating} or written out literally. */

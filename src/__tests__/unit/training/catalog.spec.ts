@@ -1,6 +1,8 @@
 import { describe, expect, it } from '@effect/vitest'
 
 import { PLANS } from '@/features/training/catalog'
+import de from '@/i18n/messages/de'
+import en from '@/i18n/messages/en'
 
 import { assertPlanInvariants, sessionsOf } from './planInvariants'
 
@@ -15,8 +17,37 @@ import { assertPlanInvariants, sessionsOf } from './planInvariants'
  * What is left is the part a third plan inherits by being added to `PLANS`:
  * see `planInvariants.ts` for the rule that decides which side a case lands on.
  */
+/** The catalogue segment of a description key: `plans.catalog.<this>.description`. */
+const planKey = (descriptionKey: string): keyof typeof en.plans.catalog =>
+  // SAFETY: `PlanDescriptionKey` is a template literal over exactly these
+  // keys, so segment 2 of any value the type admits is one of them. The
+  // assertion is what a dependent return type would express; the `?.` at the
+  // call site is what would catch it if the type ever stopped holding.
+  descriptionKey.split('.')[2] as keyof typeof en.plans.catalog
+
 describe.each(PLANS)('$name', (plan) => {
   assertPlanInvariants(plan)
+})
+
+/**
+ * A description the type guarantees exists in `en`, checked against the
+ * message objects in both locales.
+ *
+ * The type is built from `en` alone, so `de` is the half it cannot see: a
+ * translator who deletes a key leaves `de` printing the raw path on a browse
+ * card while everything still compiles.
+ */
+describe.each(PLANS)('$name description', (plan) => {
+  it.each([
+    ['en', en],
+    ['de', de],
+  ])('resolves to a sentence in %s', (_locale, messages) => {
+    const description = messages.plans.catalog[planKey(plan.descriptionKey)]?.description
+
+    expect(description).toBeTypeOf('string')
+    expect(description).not.toBe('')
+    expect(description).not.toBe(plan.descriptionKey)
+  })
 })
 
 describe('PLANS', () => {
