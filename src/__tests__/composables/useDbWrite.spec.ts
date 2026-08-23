@@ -102,3 +102,19 @@ it('rethrows a defect, and releases the guard, when the program dies', async ({
 
   expect(result.isWriting.value).toBe(false)
 })
+
+it('rethrows a defect that is undefined, which no sentinel could tell apart', async ({
+  mountComposable,
+}) => {
+  const { result } = mountComposable(() => useDbWrite())
+  let rejected = false
+
+  // `Effect.die` takes anything. Capturing the defect in a variable and
+  // testing it against `undefined` would call this one a success.
+  await result.write(Effect.die(undefined)).catch(() => {
+    rejected = true
+  })
+
+  expect(rejected).toBe(true)
+  expect(result.isWriting.value).toBe(false)
+})

@@ -70,12 +70,19 @@ export function useDbWrite(): UseDbWriteReturn {
     // Caught rather than tapped: the fn atom does not reject on a defect, so
     // observing it inside the program is the only way to still have it out
     // here. `ensuring` is outermost so the guard is released on every branch
-    // — success, a handled failure, this one, and an interrupt.
+    // — success, a handled failure, this one, and an interrupt (which is not
+    // a defect, and so is not rethrown).
+    //
+    // A separate flag rather than testing the captured value: `Effect.die`
+    // takes anything, `undefined` included, and a sentinel that a real defect
+    // can equal is the silence this whole branch exists to end.
+    let died = false
     let defect: unknown
     await runMutation(
       program.pipe(
         Effect.catchDefect((cause) =>
           Effect.sync(() => {
+            died = true
             defect = cause
           }),
         ),
@@ -85,7 +92,7 @@ export function useDbWrite(): UseDbWriteReturn {
 
     // Outside Effect, so it is a rejection of the promise the caller hands
     // back to Vue rather than a second defect nothing is listening for.
-    if (defect !== undefined) throw defect
+    if (died) throw defect
   }
 
   return { isWriting, write }
