@@ -17,6 +17,15 @@ import type { Plan, PlanSession, PlanWeek } from '../types'
  * docs/functional-core.md.
  */
 
+/**
+ * A minute in milliseconds, because a rest is written the way it is spoken.
+ *
+ * Distances are metres and every duration is milliseconds throughout the app
+ * (`types.ts`), so `3 * MINUTE_MS` is a plan file saying "three minutes" in
+ * the unit `pace.ts` reads without a conversion anywhere between.
+ */
+export const MINUTE_MS = 60_000
+
 /** A session before it has a place in a plan, and so before it has an id. */
 export type SessionBody = Omit<PlanSession, 'id'>
 

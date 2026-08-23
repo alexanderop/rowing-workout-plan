@@ -48,7 +48,7 @@ export default {
     },
     // "Adapted", not "published": the sessions are built from the rotations
     // Pete describes, not transcribed from them — see the reasoning at the
-    // top of features/training/catalog.ts.
+    // top of features/training/catalog/pete5k.ts.
     source: 'Sessions are adapted from the training plans published at {sources}.',
     catalog: {
       pete5k: {

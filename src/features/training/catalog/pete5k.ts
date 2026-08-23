@@ -1,25 +1,25 @@
-import type { Plan } from './types'
-
 import {
   definePlan,
   longRest,
+  MINUTE_MS,
   pacedTwoK,
   piece,
   rotating,
   shortRest,
   steady,
-} from './catalog/build'
-import type { SessionBody, WeekBody } from './catalog/build'
+} from './build'
+import type { SessionBody, WeekBody } from './build'
+import type { Plan } from '../types'
 
 /**
- * The plans, as immutable data.
+ * Twelve weeks, 71 sessions, tapering into a 5k test.
  *
  * **Adapted from thepeteplan.com, not transcribed from it.** The Pete Plan as
  * Pete Marston publishes it is a *continuous* plan: a three-week cycle of six
  * sessions repeated indefinitely, built on `8 x 500m / 3:30r`-style speed
  * intervals and `5 x 1500m / 5:00r`-style endurance intervals, with the rest
- * roughly twice the work. `pete5k` below is a twelve-week course built on the
- * same three-week rotation idea but different sessions — shorter rests, a
+ * roughly twice the work. This is a twelve-week course built on the same
+ * three-week rotation idea but different sessions — shorter rests, a
  * rotation-ending paced 2k, and an end date. The published plan is a separate
  * catalogue entry still to come (the Plans screen lists it as "Ongoing"), and
  * it should not be folded into this one.
@@ -27,6 +27,7 @@ import type { SessionBody, WeekBody } from './catalog/build'
  * What is *not* invented is week 3: `[steady, 6x1k/1', steady, 4x1800m/4',
  * steady, 3x2k/3']` is pinned by the design canvas, and every other week is
  * built from the same rotation so that week falls out of the general rule.
+ * `pete5k.spec.ts` is where that pin lives.
  *
  * The shape of the thing is the point. Four rotations of three weeks: within a
  * rotation the reps lengthen at the same target pace, and the next rotation
@@ -34,25 +35,16 @@ import type { SessionBody, WeekBody } from './catalog/build'
  * model, so it is expressed once — as the three-element rotation tables below
  * — rather than typed out twelve times. Changing a session shape is editing
  * one row here; the weeks regenerate.
- *
- * Pure by construction: no clock, no storage, no ambient reads.
- * docs/functional-core.md.
  */
 
-const MINUTE_MS = 60_000
-
-/**
- * Four rotations of three weeks, which is the pete5k family's shape and no
- * longer the catalogue's: `rotating` takes both as arguments and the `Plan`
- * carries `rotationWeeks` on to `schedule.ts`.
- */
 const ROTATIONS = 4
 const ROTATION_WEEKS = 3
+const FINAL_WEEK = ROTATIONS * ROTATION_WEEKS
 
 /**
  * The floor on a steady row, with no ceiling — the screens say "10k+". Steady
  * volume is the half of this plan that is bounded by a rower's week rather
- * than by the plan, so the catalogue states a minimum and stops.
+ * than by the plan, so it states a minimum and stops.
  */
 const STEADY = steady(10_000)
 
@@ -118,7 +110,6 @@ const TAPER_WEEK: WeekBody = [
   piece(5000),
 ]
 
-/** Twelve weeks, 71 sessions, tapering into a 5k test. */
 export const pete5k: Plan = definePlan({
   id: 'pete5k',
   name: 'Pete Plan 5k',
@@ -129,55 +120,6 @@ export const pete5k: Plan = definePlan({
     rotations: ROTATIONS,
     rotationWeeks: ROTATION_WEEKS,
     week: fullWeek,
-    overrides: { [ROTATIONS * ROTATION_WEEKS]: TAPER_WEEK },
+    overrides: { [FINAL_WEEK]: TAPER_WEEK },
   }),
 })
-
-/**
- * The same rotation at half the weekly volume: one steady row instead of
- * three, and the hard distance piece dropped. What survives is one session of
- * each interval kind, because the rotation-ending paced 2k is what re-targets
- * the next rotation — a lite plan that never measures you cannot pace itself.
- *
- * The steady row keeps the full plan's 10k floor. "Lite" here is three
- * sessions a week rather than six and shorter reps within them, not an easier
- * definition of steady.
- */
-const LITE_SHORT_REST_ROTATION: readonly SessionBody[] = [
-  shortRest(6, 500, MINUTE_MS),
-  shortRest(5, 750, MINUTE_MS),
-  shortRest(4, 1000, MINUTE_MS),
-]
-
-/**
- * Two rows, not three: the third week of every rotation closes on the paced
- * 2k instead, so a third row here would be data nothing reads. (Mutation
- * testing is what caught that — a row no code path reaches cannot be killed.)
- */
-const LITE_LONG_REST_ROTATION: readonly SessionBody[] = [
-  longRest(4, 1000, 4 * MINUTE_MS),
-  longRest(3, 1500, 4 * MINUTE_MS),
-]
-
-const liteWeek = (slot: number): WeekBody => [
-  LITE_SHORT_REST_ROTATION[slot],
-  STEADY,
-  slot === ROTATION_WEEKS - 1 ? pacedTwoK(3, 2000, 3 * MINUTE_MS) : LITE_LONG_REST_ROTATION[slot],
-]
-
-/**
- * The same twelve weeks at three sessions each: 36. No taper — there is no
- * volume to taper from, so week 12 ends on the paced 2k like every other
- * rotation does.
- */
-export const pete5kLite: Plan = definePlan({
-  id: 'pete5k-lite',
-  name: 'Pete Plan 5k — Lite',
-  descriptionKey: 'plans.catalog.pete5kLite.description',
-  source: 'thepeteplan.com',
-  rotationWeeks: ROTATION_WEEKS,
-  weeks: rotating({ rotations: ROTATIONS, rotationWeeks: ROTATION_WEEKS, week: liteWeek }),
-})
-
-/** Everything the Plans screen lists, in the order it lists it. */
-export const PLANS: readonly Plan[] = [pete5k, pete5kLite]
