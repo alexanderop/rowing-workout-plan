@@ -17,8 +17,15 @@ export default {
 
   // Required, not optional: the default glob includes `vue`, and Stryker really
   // does mutate SFC script blocks. Every mutant outside the unit tier's reach
-  // survives by construction and buries the signal. Keep this list in step with
-  // what src/__tests__/unit/ actually covers.
+  // survives by construction and buries the signal.
+  //
+  // This list is the functional core plus the two db programs the unit tier
+  // drives, and it is no longer kept in step by hand: `CORE` in
+  // `eslint.config.ts` is the source of truth, and
+  // `src/__tests__/architecture/mutationScope.test.ts` fails when a core
+  // module is missing here without a declared reason. A gate with nothing to
+  // grade passes hardest, and a new core module would have escaped this one
+  // silently.
   //
   // Deliberately NOT here:
   //   - src/db/repositories/** — half the file is the Dexie layer (browser
@@ -39,6 +46,7 @@ export default {
     'src/features/*/session.ts',
     'src/features/*/targets.ts',
     'src/features/*/types.ts',
+    'src/features/*/week.ts',
     'src/lib/backupFile.ts',
     'src/lib/installPlatform.ts',
   ],
