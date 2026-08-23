@@ -1,16 +1,12 @@
 import { describe, expect, it } from '@effect/vitest'
-import { Result } from 'effect'
 
 import type { Workout } from '@/db'
 import {
-  DurationFormatError,
-  DurationRangeError,
   elapsed,
   filterWorkouts,
   formatDuration,
   groupByWeek,
   monthTotals,
-  parseDuration,
   WORKOUT_FILTERS,
 } from '@/features/training/history'
 
@@ -247,67 +243,5 @@ describe('elapsed', () => {
 
   it('truncates rather than rounds — a total is not a stopwatch', () => {
     expect(elapsed(119_000)).toEqual({ hours: 0, minutes: 1 })
-  })
-})
-
-describe('parseDuration', () => {
-  const succeeded = <A, E>(result: Result.Result<A, E>): A => Result.getOrThrow(result)
-  const failed = <A, E>(result: Result.Result<A, E>): E => Result.getOrThrow(Result.flip(result))
-
-  it.each([
-    ['43:07', 2_587_000],
-    ['24:06', 1_446_000],
-    ['7:04.2', 424_200],
-    ['1:03:22', 3_802_000],
-    [' 43:07 ', 2_587_000],
-  ])('reads %p as %p ms', (text, expected) => {
-    expect(succeeded(parseDuration(text))).toBe(expected)
-  })
-
-  it('reads two fields as minutes and seconds, three as hours too', () => {
-    // The rule a monitor follows, and why "1:03" is a minute rather than an
-    // hour: the fields fill from the right.
-    expect(succeeded(parseDuration('1:03'))).toBe(63_000)
-    expect(succeeded(parseDuration('1:03:00'))).toBe(3_780_000)
-  })
-
-  it('round-trips whatever formatDuration writes', () => {
-    for (const durationMs of [7000, 247_000, 2_587_000, 3_802_000])
-      expect(succeeded(parseDuration(formatDuration(durationMs)))).toBe(durationMs)
-  })
-
-  it('keeps every digit of a fraction, rather than only the first', () => {
-    // A PM5 shows tenths; an online result can carry hundredths. Truncating
-    // the pattern to one digit would reject the second silently.
-    expect(succeeded(parseDuration('7:04.25'))).toBe(424_250)
-    expect(succeeded(parseDuration('7:04.2'))).toBe(424_200)
-  })
-
-  it.each(['43:7', '', 'forty three', '43', '43:60', '1:3:22', '43:07:', ':07'])(
-    'refuses %p as a typo rather than guessing',
-    (text) => {
-      expect(failed(parseDuration(text))).toBeInstanceOf(DurationFormatError)
-    },
-  )
-
-  it('carries the text it could not read, namespaced so a catchTags cannot collide', () => {
-    // The tag is the whole recovery API — a component matches on the string,
-    // never on the constructor — so it is asserted rather than assumed.
-    expect(failed(parseDuration('43:7'))).toMatchObject({
-      _tag: 'Training.DurationFormatError',
-      input: '43:7',
-    })
-  })
-
-  it('refuses a time that is well-formed and still not a workout', () => {
-    expect(failed(parseDuration('0:00'))).toBeInstanceOf(DurationRangeError)
-    expect(failed(parseDuration('0:00:00'))).toBeInstanceOf(DurationRangeError)
-  })
-
-  it('carries the duration it rejected, so a message can name it', () => {
-    expect(failed(parseDuration('0:00'))).toMatchObject({
-      _tag: 'Training.DurationRangeError',
-      durationMs: 0,
-    })
   })
 })

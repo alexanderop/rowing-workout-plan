@@ -1,5 +1,3 @@
-import { Result, Schema } from 'effect'
-
 import type { Workout } from '@/db'
 
 /**
@@ -32,22 +30,6 @@ const MS_PER_SECOND = 1000
 const SECONDS_PER_MINUTE = 60
 const MINUTES_PER_HOUR = 60
 const DAYS_PER_WEEK = 7
-
-/** Text that is not a duration — the typo half of a mistyped workout time. */
-export class DurationFormatError extends Schema.TaggedError<DurationFormatError>()(
-  'Training.DurationFormatError',
-  {
-    input: Schema.String,
-  },
-) {}
-
-/** A duration that parsed and is still not a workout — `0:00`. */
-export class DurationRangeError extends Schema.TaggedError<DurationRangeError>()(
-  'Training.DurationRangeError',
-  {
-    durationMs: Schema.Number,
-  },
-) {}
 
 /** Which of the log's three headings a workout sits under. */
 type HistoryBucket = 'thisWeek' | 'lastWeek' | 'earlier'
@@ -204,40 +186,4 @@ export function elapsed(durationMs: number): Elapsed {
     hours: Math.floor(totalMinutes / MINUTES_PER_HOUR),
     minutes: totalMinutes % MINUTES_PER_HOUR,
   }
-}
-
-/**
- * `m:ss`, `mm:ss.t` or `h:mm:ss` — what a PM5 shows and therefore what a
- * rower types off it. Anchored, and the seconds fields are fixed at two
- * digits: `43:7` is a slip, and reading it as 43:07 would put a workout on
- * the screen that never happened.
- */
-const DURATION_PATTERN = /^\d{1,2}:[0-5]\d(?::[0-5]\d)?(?:\.\d+)?$/
-
-/**
- * The inverse of {@link formatDuration}, to milliseconds.
- *
- * Two fields mean minutes and seconds, three mean hours as well — the same
- * rule a monitor follows, and the reason a bare "1:03" is one minute rather
- * than an hour. Zero is rejected: it is well-formed and still not a workout.
- */
-export function parseDuration(
-  text: string,
-): Result.Result<number, DurationFormatError | DurationRangeError> {
-  return Result.gen(function* () {
-    const trimmed = text.trim()
-    if (!DURATION_PATTERN.test(trimmed))
-      return yield* Result.fail(new DurationFormatError({ input: text }))
-
-    // Split rather than read the pattern's groups, for the reason `parseSplit`
-    // gives: a capture comes back as `string | undefined`, and the `?? ''`
-    // that satisfies the compiler is a branch the pattern already made
-    // unreachable — dead code no test can reach and no reader can discount.
-    const parts = trimmed.split(':').map(Number)
-    const seconds = parts.reduce((total, part) => total * SECONDS_PER_MINUTE + part, 0)
-    const durationMs = Math.round(seconds * MS_PER_SECOND)
-
-    if (durationMs <= 0) return yield* Result.fail(new DurationRangeError({ durationMs }))
-    return durationMs
-  })
 }

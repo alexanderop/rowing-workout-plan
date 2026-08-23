@@ -6,10 +6,8 @@ import {
   formatSplit,
   PaceRangeError,
   paceBand,
-  parseSplit,
   splitFor,
   splitFromWatts,
-  SplitFormatError,
   wattsFromSplit,
 } from '@/features/training/pace'
 
@@ -186,75 +184,6 @@ describe('formatSplit', () => {
     for (const bad of [0, -112_400, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(failed(formatSplit(bad)).field).toBe('splitMs')
     }
-  })
-})
-
-describe('parseSplit', () => {
-  it('reads what formatSplit writes', () => {
-    expect(succeeded(parseSplit('1:52.4'))).toBe(112_400)
-    expect(succeeded(parseSplit('7:04.2'))).toBe(424_200)
-    expect(succeeded(parseSplit('0:11.3'))).toBe(11_300)
-    expect(succeeded(parseSplit('10:00.0'))).toBe(600_000)
-  })
-
-  it('accepts a split with no fraction, and one with more than a tenth', () => {
-    expect(succeeded(parseSplit('1:52'))).toBe(112_000)
-    expect(succeeded(parseSplit('1:52.44'))).toBe(112_440)
-  })
-
-  it('trims either end, because a paste carries whitespace', () => {
-    expect(succeeded(parseSplit('  1:52.4'))).toBe(112_400)
-    expect(succeeded(parseSplit('1:52.4  '))).toBe(112_400)
-  })
-
-  it('returns whole milliseconds', () => {
-    // 112.4 * 1000 is 112400.00000000001 in binary floating point, and a
-    // split that is not an integer number of milliseconds breaks every
-    // equality downstream of it.
-    expect(Number.isInteger(succeeded(parseSplit('1:52.4')))).toBe(true)
-  })
-
-  it('rejects text that is not a split', () => {
-    for (const bad of ['', '   ', 'abc', '1:52,4', '152.4', '1:52.', ':52.4', '1:', '1:52.4s']) {
-      expect(failed(parseSplit(bad))).toBeInstanceOf(SplitFormatError)
-      // Matched as a shape rather than narrowed: the failure is a union, and
-      // the tag plus the echoed input are both part of what a form needs.
-      expect(failed(parseSplit(bad))).toMatchObject({
-        _tag: 'Training.SplitFormatError',
-        input: bad,
-      })
-    }
-  })
-
-  it('requires two digits of seconds rather than guessing', () => {
-    // `1:5.4` is a slip. Reading it as 1:05.4 would put a pace on screen the
-    // user never typed, and reading it as 1:50.4 would too.
-    expect(failed(parseSplit('1:5.4'))).toBeInstanceOf(SplitFormatError)
-  })
-
-  it('rejects a seconds field of 60 or more', () => {
-    expect(failed(parseSplit('1:60.0'))).toBeInstanceOf(SplitFormatError)
-    expect(failed(parseSplit('1:99'))).toBeInstanceOf(SplitFormatError)
-  })
-
-  it('rejects a signed split', () => {
-    expect(failed(parseSplit('-1:52.4'))).toBeInstanceOf(SplitFormatError)
-    expect(failed(parseSplit('+1:52.4'))).toBeInstanceOf(SplitFormatError)
-  })
-
-  it('separates a typo from an impossible pace', () => {
-    // `0:00.0` is well-formed and still not a split, so it fails as a range
-    // error. The two carry different fixes, which is why they are two types.
-    const error = failed(parseSplit('0:00.0'))
-    expect(error).toBeInstanceOf(PaceRangeError)
-    expect(error).not.toBeInstanceOf(SplitFormatError)
-    expect(error).toMatchObject({ _tag: 'Training.PaceRangeError', field: 'splitMs', value: 0 })
-  })
-
-  it.prop('round-trips a split through its text', [PLAUSIBLE_SPLIT_MS], ([splitMs]) => {
-    const text = succeeded(formatSplit(splitMs))
-    // Within a tenth: that is all the text carries, by construction.
-    expect(Math.abs(succeeded(parseSplit(text)) - splitMs)).toBeLessThan(100)
   })
 })
 

@@ -43,16 +43,15 @@ describe('onboarding', () => {
     await screen.benchmark.expectPace('1:46.0')
   })
 
-  it('refuses to save text that is not a time', async ({ plans }) => {
+  it('refuses to save a 2k nobody has entered', async ({ plans }) => {
+    // There is no such thing here as a malformed 2k — the pad cannot produce
+    // one — so the only entry left to refuse is the empty one, and Save says
+    // so by staying disabled.
     const screen = await plans()
     await screen.enterBenchmark()
 
-    await screen.benchmark.type('seven minutes')
-
     await screen.benchmark.expectSaveDisabled()
-    await expect
-      .element(screen.benchmark.dialog.getByText('Enter a time like 7:04.2'))
-      .toBeVisible()
+    await expect.element(screen.benchmark.field).toHaveTextContent('7:04.2')
   })
 
   it('reveals the plans once a 2k is entered, and keeps it', async ({ plans }) => {

@@ -4,8 +4,7 @@ import { Effect, Result } from 'effect'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AtomButton from '@/components/atoms/AtomButton.vue'
-import AtomInput from '@/components/atoms/AtomInput.vue'
-import AtomLabel from '@/components/atoms/AtomLabel.vue'
+import MoleculeNumberField from '@/components/molecules/MoleculeNumberField.vue'
 import {
   MoleculeDialog,
   MoleculeDialogContent,
@@ -14,15 +13,12 @@ import {
   MoleculeDialogTitle,
 } from '@/components/molecules/dialog'
 import { useReportFailure } from '@/composables/useReportFailure'
-import { useTouchDevice } from '@/composables/useTouchDevice'
 import type { WorkoutDraft } from '@/db'
 import { dbMutation, logWorkout } from '@/db'
+import type { NumericInputOptions } from '@/lib/numericInput'
 import { useToastStore } from '@/stores/toast'
-import type { DurationFormatError, DurationRangeError } from '../history'
-import { parseDuration } from '../history'
 import type { PaceRangeError } from '../pace'
 import { formatSplit, splitFor, wattsFromSplit } from '../pace'
-import EntryPad from './EntryPad.vue'
 
 /**
  * Typing a workout in off the monitor — the whole product until Bluetooth
@@ -34,6 +30,11 @@ import EntryPad from './EntryPad.vue'
  * asked for the split would have two fields that can disagree, and the one
  * the user retyped would win. Rate is optional and stored as given, since
  * nothing computes it.
+ *
+ * All three are numbers, not text. The pad behind each field is the only way
+ * in, so there is no such thing here as a malformed entry — `42:7` cannot be
+ * expressed — and the two errors left are the ones a well-formed number can
+ * still be: missing, or zero.
  */
 
 const { planSessionId, distanceM } = defineProps<{
@@ -45,14 +46,24 @@ const { planSessionId, distanceM } = defineProps<{
 
 const open = defineModel<boolean>('open', { default: false })
 
+/** A monitor reports whole metres, so the field does too. */
+const DISTANCE_OPTIONS = { max: 99_999, zerosKey: 3 } satisfies NumericInputOptions
+
+/** 99:59, the longest a four-digit `m:ss` mask can say. */
+const TIME_OPTIONS = { mask: 'duration', max: 5_999_000, zerosKey: 2 } satisfies NumericInputOptions
+
+const RATE_OPTIONS = { max: 60 } satisfies NumericInputOptions
+
+/** The distances a rower actually types, and rates a stroke rate actually is. */
+const DISTANCE_PRESETS = [2000, 5000, 6000, 10_000] as const
+const RATE_PRESETS = [18, 20, 22, 24, 26, 28, 30, 32] as const
+
 const { t } = useI18n()
 const toast = useToastStore()
-const isTouchDevice = useTouchDevice()
 
-const distance = ref('')
-const time = ref('')
-const rate = ref('')
-const timePadOpen = ref(false)
+const distance = ref(0)
+const duration = ref(0)
+const rate = ref(0)
 // In-flight guard: a double-tap on Save would otherwise log the row twice.
 const isSaving = ref(false)
 
@@ -61,21 +72,10 @@ const isSaving = ref(false)
 // "log a row" should show.
 watch(open, (isOpen) => {
   if (!isOpen) return
-  distance.value = distanceM === undefined ? '' : String(distanceM)
-  time.value = ''
-  rate.value = ''
-  timePadOpen.value = false
+  distance.value = distanceM ?? 0
+  duration.value = 0
+  rate.value = 0
 })
-
-/**
- * Rounded here and nowhere else. A monitor reports whole metres, and rounding
- * *after* deriving the split stored a row whose three numbers disagreed:
- * `splitFor(distanceM, durationMs)` no longer reproduced the `avgSplitMs`
- * beside it, so the log row showed a distance, a time and a pace that were
- * not the same row.
- */
-const distanceM_ = computed(() => Math.round(Number(distance.value.trim())))
-const durationMs = computed(() => parseDuration(time.value))
 
 /**
  * The split and the power the two fields work out to, shown live. It is the
@@ -85,8 +85,7 @@ const durationMs = computed(() => parseDuration(time.value))
 const resultText = computed(() =>
   Result.getOrElse(
     Result.gen(function* () {
-      const duration = yield* durationMs.value
-      const splitMs = yield* splitFor(distanceM_.value, duration)
+      const splitMs = yield* splitFor(distance.value, duration.value)
       const watts = yield* wattsFromSplit(splitMs)
       const split = yield* formatSplit(splitMs)
 
@@ -96,28 +95,16 @@ const resultText = computed(() =>
   ),
 )
 
-// Only complain about text that has actually been typed — an empty field is
-// not yet a mistake.
-const showInvalidTime = computed(
-  () =>
-    time.value.trim() !== '' &&
-    !Result.isSuccess(durationMs.value) &&
-    !(isTouchDevice.value && timePadOpen.value),
+// Say which half is missing rather than leaving Save disabled and silent —
+// a button that will not press and will not say why reads as the app being
+// broken. Only once the other half is there: an untouched sheet is not yet a
+// mistake.
+const missingDistance = computed(() =>
+  distance.value === 0 && duration.value > 0 ? t('logSheet.missingDistance') : undefined,
 )
-
-const invalidTimeMessage = computed(() =>
-  Result.match(durationMs.value, {
-    onFailure: (error) =>
-      error._tag === 'Training.DurationRangeError'
-        ? t('logSheet.invalidTimeRange')
-        : t('logSheet.invalidTime'),
-    onSuccess: () => '',
-  }),
+const missingTime = computed(() =>
+  duration.value === 0 && distance.value > 0 ? t('logSheet.missingTime') : undefined,
 )
-
-// The distance field said nothing when it was wrong: Save simply stayed
-// disabled, which reads as the app being broken rather than the entry being.
-const showInvalidDistance = computed(() => distance.value.trim() !== '' && !(distanceM_.value > 0))
 
 const canSave = computed(() => resultText.value !== '' && !isSaving.value)
 
@@ -129,26 +116,6 @@ const runMutation = useAtomSet(() => dbMutation, { mode: 'promise' })
 // The shared failure branch: a structured log for the developer, a toast for
 // the user — see useReportFailure for why it is an Effect.
 const reportFailure = useReportFailure('log workout')
-
-function showTimePad(): void {
-  timePadOpen.value = true
-}
-
-function hideTimePad(): void {
-  timePadOpen.value = false
-}
-
-function advanceFromTime(): void {
-  hideTimePad()
-  document.getElementById('log-rate')?.focus({ preventScroll: true })
-}
-
-/**
- * The row as the repository takes it. Built from the same `Result`s the live
- * readout is built from, so what is stored is exactly what was on screen —
- * there is no second calculation to drift.
- */
-type DraftFailure = DurationFormatError | DurationRangeError | PaceRangeError
 
 /**
  * The two fields that are only sometimes there, as keys that are only
@@ -167,23 +134,26 @@ type OptionalWorkoutFields = {
 function optionalFields(): OptionalWorkoutFields {
   const fields: OptionalWorkoutFields = {}
 
-  const avgRate = Number(rate.value.trim())
-  if (Number.isFinite(avgRate) && avgRate > 0) fields.avgRate = avgRate
+  if (rate.value > 0) fields.avgRate = rate.value
   if (planSessionId !== undefined) fields.planSessionId = planSessionId
 
   return fields
 }
 
-function draft(): Result.Result<WorkoutDraft, DraftFailure> {
+/**
+ * The row as the repository takes it. Built from the same `Result` the live
+ * readout is built from, so what is stored is exactly what was on screen —
+ * there is no second calculation to drift.
+ */
+function draft(): Result.Result<WorkoutDraft, PaceRangeError> {
   return Result.gen(function* () {
-    const duration = yield* durationMs.value
-    const avgSplitMs = yield* splitFor(distanceM_.value, duration)
+    const avgSplitMs = yield* splitFor(distance.value, duration.value)
     const avgWatts = yield* wattsFromSplit(avgSplitMs)
 
     return {
       source: 'manual',
-      distanceM: distanceM_.value,
-      durationMs: duration,
+      distanceM: distance.value,
+      durationMs: duration.value,
       avgSplitMs,
       avgWatts,
       ...optionalFields(),
@@ -233,65 +203,44 @@ async function save(): Promise<void> {
       </MoleculeDialogHeader>
 
       <form class="flex flex-col gap-4" @submit.prevent="save">
-        <div class="flex flex-col gap-2">
-          <AtomLabel for="log-distance">{{ t('logSheet.distance') }}</AtomLabel>
-          <AtomInput
-            id="log-distance"
-            v-model="distance"
-            inputmode="numeric"
-            :placeholder="t('logSheet.distancePlaceholder')"
-            :aria-describedby="showInvalidDistance ? 'log-distance-error' : undefined"
-            :aria-invalid="showInvalidDistance"
-            autocomplete="off"
-            @focus="hideTimePad"
-          />
-          <p v-if="showInvalidDistance" id="log-distance-error" class="text-sm text-destructive">
-            {{ t('logSheet.invalidDistance') }}
-          </p>
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <AtomLabel for="log-time">{{ t('logSheet.time') }}</AtomLabel>
-          <AtomInput
-            id="log-time"
-            v-model="time"
-            :inputmode="isTouchDevice ? 'none' : undefined"
-            :placeholder="t('logSheet.timePlaceholder')"
-            :aria-describedby="showInvalidTime ? 'log-time-error' : undefined"
-            :aria-invalid="showInvalidTime"
-            autocomplete="off"
-            @focus="showTimePad"
-            @blur="hideTimePad"
-          />
-          <p v-if="showInvalidTime" id="log-time-error" class="text-sm text-destructive">
-            {{ invalidTimeMessage }}
-          </p>
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <AtomLabel for="log-rate">
-            {{ t('logSheet.rate') }}
-            <span class="text-muted-foreground">({{ t('logSheet.optional') }})</span>
-          </AtomLabel>
-          <AtomInput
-            id="log-rate"
-            v-model="rate"
-            inputmode="numeric"
-            :placeholder="t('logSheet.ratePlaceholder')"
-            autocomplete="off"
-            @focus="hideTimePad"
-          />
-        </div>
-
-        <EntryPad
-          v-if="isTouchDevice && timePadOpen"
-          v-model="time"
-          kind="duration"
-          :field-label="t('logSheet.time')"
-          :action-label="t('common.buttons.next')"
-          extra-key="00"
-          @advance="advanceFromTime"
+        <MoleculeNumberField
+          id="log-distance"
+          v-model="distance"
+          :label="t('logSheet.distance')"
+          :title="t('logSheet.distanceTitle')"
+          :description="t('logSheet.distanceHelp')"
+          :placeholder="t('logSheet.distancePlaceholder')"
+          :options="DISTANCE_OPTIONS"
+          :presets="DISTANCE_PRESETS"
+          :error="missingDistance"
+          unit="m"
         />
+
+        <MoleculeNumberField
+          id="log-time"
+          v-model="duration"
+          :label="t('logSheet.time')"
+          :title="t('logSheet.timeTitle')"
+          :description="t('logSheet.timeHelp')"
+          :placeholder="t('logSheet.timePlaceholder')"
+          :options="TIME_OPTIONS"
+          :error="missingTime"
+        />
+
+        <MoleculeNumberField
+          id="log-rate"
+          v-model="rate"
+          :label="t('logSheet.rate')"
+          :title="t('logSheet.rateTitle')"
+          :description="t('logSheet.rateHelp')"
+          :placeholder="t('logSheet.ratePlaceholder')"
+          :options="RATE_OPTIONS"
+          :presets="RATE_PRESETS"
+        >
+          <template #label>
+            <span class="text-muted-foreground">({{ t('logSheet.optional') }})</span>
+          </template>
+        </MoleculeNumberField>
 
         <!-- The derived half, live. Absent rather than zeroed while the two
              fields are incomplete: a split of 0:00 is a claim, a blank is not. -->

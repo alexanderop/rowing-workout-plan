@@ -1,6 +1,6 @@
 import { expect, vi } from 'vitest'
 import type { Locator } from 'vitest/browser'
-import { page, userEvent } from 'vitest/browser'
+import { page } from 'vitest/browser'
 
 /**
  * The 2k entry sheet (`features/training/components/BenchmarkSheet.vue`).
@@ -8,6 +8,9 @@ import { page, userEvent } from 'vitest/browser'
  * Its own object rather than methods on `PlansScreen`, mirroring the
  * component that renders it: the sheet is portalled outside the screen's
  * subtree, and it is opened from two different places on that screen.
+ *
+ * The time is entered on a pad, so `type` means "press the digits that make
+ * this time" — the colon and the point are the mask's, not the user's.
  */
 export class BenchmarkSheet {
   get dialog(): Locator {
@@ -15,17 +18,35 @@ export class BenchmarkSheet {
   }
 
   get field(): Locator {
-    return page.getByRole('textbox', { name: '2k time' })
+    return page.getByRole('button', { name: /^2k time/ })
+  }
+
+  get pad(): Locator {
+    return page.getByRole('dialog', { name: '2k time' })
   }
 
   get save(): Locator {
     return page.getByRole('button', { name: 'Save' })
   }
 
-  /** Replace whatever is in the field — the sheet prefills, so this clears first. */
+  padKey(key: string): Locator {
+    return this.pad.getByRole('button', { name: key })
+  }
+
+  async openPad(): Promise<void> {
+    await this.field.click()
+    await expect.element(this.pad).toBeVisible()
+  }
+
+  async pressKeys(...keys: Array<string>): Promise<void> {
+    for (const key of keys) await this.padKey(key).click()
+  }
+
   async type(time: string): Promise<void> {
-    await this.field.clear()
-    await userEvent.type(this.field, time)
+    await this.openPad()
+    await this.pressKeys(...time.replace(/\D/g, ''))
+    await this.padKey('Confirm value').click()
+    await expect.element(this.pad).not.toBeInTheDocument()
   }
 
   async submit(): Promise<void> {
@@ -46,7 +67,7 @@ export class BenchmarkSheet {
   })
 
   readonly expectPrefilled = vi.defineHelper(async (time: string): Promise<void> => {
-    await expect.element(this.field).toHaveValue(time)
+    await expect.element(this.field).toHaveTextContent(time)
   })
 
   readonly expectSaveDisabled = vi.defineHelper(async (): Promise<void> => {
