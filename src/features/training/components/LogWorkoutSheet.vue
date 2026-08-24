@@ -78,6 +78,11 @@ const rate = ref(0)
 const isSaving = ref(false)
 
 const photoInput = ref<HTMLInputElement | null>(null)
+// A scan can take minutes and the sheet outlives it: mounted for the life of
+// the screen, closed and reopened between. Bumped on every open *and* close,
+// so a scan started in an earlier sheet session finds its number stale and
+// drops its reading instead of overwriting a fresh draft.
+const scanSession = ref(0)
 const { status: scanStatus, scan } = useMonitorPhotoScan()
 const isScanning = computed(() => scanStatus.value !== 'idle')
 
@@ -116,13 +121,18 @@ async function handlePhotoFile(event: Event): Promise<void> {
   input.value = ''
   if (!file) return
 
-  applyReading(await scan(file))
+  const session = scanSession.value
+  const reading = await scan(file)
+  // A reading from a closed or reopened sheet is silently dropped: no toast,
+  // no field writes — the draft it was meant for no longer exists.
+  if (session === scanSession.value) applyReading(reading)
 }
 
 // Prefilled on open rather than on mount: the sheet is mounted for the life
 // of the screen and opened repeatedly, and last time's draft is not what
 // "log a row" should show.
 watch(open, (isOpen) => {
+  scanSession.value += 1
   if (!isOpen) return
   distance.value = distanceM ?? 0
   duration.value = 0

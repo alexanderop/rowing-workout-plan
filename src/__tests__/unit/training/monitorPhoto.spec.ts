@@ -218,6 +218,17 @@ describe('parseMonitorReading', () => {
       ).toBe(true)
     })
 
+    it('checks against the exact shown time, not its whole-second rounding', () => {
+      // 50 m at 2:34.0 implies exactly the 15.4 s shown; the form stores 15 s,
+      // and 400 ms of rounding alone is 2.6% — a false alarm before this check
+      // moved to the exact time.
+      expect(succeeded('{"distance": "50", "time": 15.4, "avgSplit": "2:34.0"}')).toEqual({
+        distanceM: 50,
+        durationMs: 15_000,
+        consistent: true,
+      })
+    })
+
     it('never checks a derived duration against its own source', () => {
       // 18 m at 2:30.0 implies 5.4 s, stored as 5 s — an 8% gap between the
       // exact value and its own rounding. With no shown time there is nothing

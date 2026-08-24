@@ -212,17 +212,19 @@ function durationFrom(
   return Math.round(impliedMs(distanceM, splitSeconds) / MS_PER_SECOND) * MS_PER_SECOND
 }
 
-/** True unless the photo showed a time *and* a split that contradict it. */
+/** True unless the photo showed a time *and* a split that contradict it.
+ * Compared against the exact shown time, not the whole-second rounding the
+ * form stores — on a short piece the rounding alone is more than 2%. */
 function isConsistent(
   distanceM: number,
-  durationMs: number,
   timeSeconds: number | undefined,
   splitSeconds: number | undefined,
 ): boolean {
   if (timeSeconds === undefined || splitSeconds === undefined) return true
 
-  const difference = Math.abs(impliedMs(distanceM, splitSeconds) - durationMs)
-  return difference <= durationMs * CONSISTENCY_TOLERANCE
+  const exactMs = timeSeconds * MS_PER_SECOND
+  const difference = Math.abs(impliedMs(distanceM, splitSeconds) - exactMs)
+  return difference <= exactMs * CONSISTENCY_TOLERANCE
 }
 
 /**
@@ -250,7 +252,7 @@ export function parseMonitorReading(
     return {
       distanceM,
       durationMs,
-      consistent: isConsistent(distanceM, durationMs, timeSeconds, splitSeconds),
+      consistent: isConsistent(distanceM, timeSeconds, splitSeconds),
       ...rateFrom(fields.rate),
     }
   })

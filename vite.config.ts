@@ -72,6 +72,20 @@ export default defineConfig({
               expiration: { maxEntries: 100, maxAgeSeconds: 60 * 24 * 60 * 60 },
             },
           },
+          {
+            // The onnxruntime wasm behind the photo scan, excluded from the
+            // precache above. It arrives via plain fetch(), whose `destination`
+            // is the empty string, so the static-resources rule above never
+            // matches it — without this rule a scan that worked once still
+            // re-downloads 20+ MB on the next visit, and offline never works.
+            // Same-origin only, like everything here.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.endsWith('.wasm'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ai-wasm',
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 24 * 60 * 60 },
+            },
+          },
         ],
       },
       devOptions: {
