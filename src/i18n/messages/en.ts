@@ -205,6 +205,7 @@ export default {
       scan: 'Fill in from a photo',
       loadingModel: 'Downloading the reader — first time only, this can take a while',
       reading: 'Reading the photo…',
+      downloaded: '{percent} · {loaded} of {total}',
       filled: 'Filled in from your photo — check it before saving',
       check: 'Filled in — but the time and split on the photo disagree, check the monitor',
       failed: 'Could not read that photo — type the numbers in',
@@ -270,6 +271,29 @@ export default {
         keeps: 'Your appearance and language settings stay as they are.',
         confirm: 'Yes, delete everything',
       },
+    },
+    models: {
+      title: 'Downloaded models',
+      description:
+        'Some features read your photos on this device instead of sending them anywhere, using a model the app downloads once. It stays on this device and you can remove it — the next scan simply downloads it again.',
+      checking: 'Checking what is stored…',
+      empty:
+        'Nothing downloaded yet. The photo reader arrives the first time you fill the log sheet from a photo.',
+      // Two facts a rower needs before reclaiming a few hundred megabytes:
+      // how much, and how many files it came in.
+      usage: '{size} · {files} files',
+      usedBy: {
+        monitorPhoto: 'Reads the monitor when you fill in the log sheet from a photo.',
+        runtime:
+          'The engine the models run on. Removing it is safe — it comes back with the next scan.',
+      },
+      remove: 'Remove',
+      removing: 'Removing…',
+      // The list row already reads out the model, but the button on its own
+      // would just say "Remove" to a screen reader moving button to button.
+      removeLabel: 'Remove {model}',
+      removed: '{size} freed',
+      removeError: 'That model could not be removed',
     },
     about: {
       title: 'About',

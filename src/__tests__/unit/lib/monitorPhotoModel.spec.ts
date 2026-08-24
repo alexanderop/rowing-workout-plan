@@ -1,32 +1,69 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MonitorPhotoBackends, MonitorPhotoEngine } from '@/lib/monitorPhotoModel'
+import type {
+  MonitorPhotoBackends,
+  MonitorPhotoDownload,
+  MonitorPhotoEngine,
+  MonitorPhotoProgress,
+} from '@/lib/monitorPhotoModel'
 
 /**
  * The platform edge, and one of the places where a unit spec is allowed a
  * test double (docs/functional-core.md): the model runtime cannot run in a
- * test runner, and downloading half a gigabyte of weights to grade a wrapper
- * would grade the network. The double implements `MonitorPhotoBackends`
- * exactly — the same seam-not-mock argument as `ergBluetooth.spec.ts`.
+ * test runner, and downloading a couple of hundred megabytes of weights to
+ * grade a wrapper would grade the network. The double implements
+ * `MonitorPhotoBackends` exactly — the same seam-not-mock argument as
+ * `ergBluetooth.spec.ts`.
  *
  * What is graded here is the *plumbing*: WebGPU chosen when the browser has
  * it, the WASM fallback when that load fails, one engine per session with a
- * failed load retried rather than replayed, and every failure ending as
- * `null` instead of an escaping rejection. Nothing here parses, because the
- * module does not.
+ * failed load retried rather than replayed, every failure ending as `null`
+ * instead of an escaping rejection, and the progress the two waits report.
+ * Nothing here parses, because the module does not — and nothing here proves
+ * the model can read a monitor, which is `monitorPhoto.spec.ts` against a
+ * captured reply from a real one.
+ *
+ * The progress arithmetic is the half worth reading twice. Several weight
+ * files download at once and only their totals add up to one bar, the total
+ * is not known until each file answers, and the reading half counts tokens
+ * against a ceiling it usually stops short of. Every one of those is a way
+ * to draw a bar that lies.
  */
 
-/** A backends whose engine parrots what it was shown, so the test can see
- * the photo and the prompt arrive intact. */
+/**
+ * A backends whose engine parrots what it was shown, so the test can see the
+ * photo and the task token arrive intact, and whose load and generation can
+ * be driven a step at a time.
+ */
 class FakeBackends implements MonitorPhotoBackends {
   webGpu = false
   readonly failing = new Set<string>()
+
+  /** Files this load reports before it resolves. */
+  downloads: ReadonlyArray<MonitorPhotoDownload> = []
+  /** Tokens the engine reports generating, prompt call included. */
+  steps = 0
+
   readonly engine: MonitorPhotoEngine = vi.fn(
-    async (photo: Blob, prompt: string): Promise<string> => `read ${await photo.text()}: ${prompt}`,
+    async (photo: Blob, task: string, onStep): Promise<string> => {
+      // `generate` hands a streamer the prompt first, so the produced count
+      // starts at zero and runs one behind the calls.
+      for (let call = 0; call <= this.steps; call += 1) onStep?.(call, 400)
+
+      return `read ${await photo.text()}: ${task}`
+    },
   )
-  readonly load = vi.fn(async (device: 'webgpu' | 'wasm'): Promise<MonitorPhotoEngine> => {
-    if (this.failing.has(device)) throw new Error(`${device} unavailable`)
-    return this.engine
-  })
+
+  readonly load = vi.fn(
+    async (
+      device: 'webgpu' | 'wasm',
+      onDownload: (file: MonitorPhotoDownload) => void,
+    ): Promise<MonitorPhotoEngine> => {
+      if (this.failing.has(device)) throw new Error(`${device} unavailable`)
+      for (const file of this.downloads) onDownload(file)
+
+      return this.engine
+    },
+  )
 
   hasWebGpu(): boolean {
     return this.webGpu
@@ -40,12 +77,26 @@ class FakeBackends implements MonitorPhotoBackends {
 /** A fresh module per test: the engine singleton is the state under test. */
 async function readPhoto(
   backends: MonitorPhotoBackends,
-  onModelReady?: () => void,
+  onProgress?: (progress: MonitorPhotoProgress) => void,
 ): Promise<string | null> {
   const { readMonitorPhoto } = await import('@/lib/monitorPhotoModel')
 
-  return readMonitorPhoto(new Blob(['photo']), 'the prompt', onModelReady, backends)
+  return readMonitorPhoto(new Blob(['photo']), '<OCR_WITH_REGION>', onProgress, backends)
 }
+
+/** Every update one scan reported, in order. */
+async function progressOf(backends: FakeBackends): Promise<ReadonlyArray<MonitorPhotoProgress>> {
+  const updates: MonitorPhotoProgress[] = []
+  await readPhoto(backends, (update) => updates.push(update))
+
+  return updates
+}
+
+const downloading = (updates: ReadonlyArray<MonitorPhotoProgress>) =>
+  updates.filter((update) => update.phase === 'loadingModel')
+
+const reading = (updates: ReadonlyArray<MonitorPhotoProgress>) =>
+  updates.filter((update) => update.phase === 'reading')
 
 beforeEach(() => {
   vi.resetModules()
@@ -54,18 +105,16 @@ beforeEach(() => {
 describe('readMonitorPhoto', () => {
   it('reads the photo on wasm where the browser has no WebGPU', async () => {
     const backends = new FakeBackends()
-    const onModelReady = vi.fn()
 
-    await expect(readPhoto(backends, onModelReady)).resolves.toBe('read photo: the prompt')
+    await expect(readPhoto(backends)).resolves.toBe('read photo: <OCR_WITH_REGION>')
     expect(backends.devices()).toEqual(['wasm'])
-    expect(onModelReady).toHaveBeenCalledTimes(1)
   })
 
   it('prefers WebGPU where the browser offers it', async () => {
     const backends = new FakeBackends()
     backends.webGpu = true
 
-    await expect(readPhoto(backends)).resolves.toBe('read photo: the prompt')
+    await expect(readPhoto(backends)).resolves.toBe('read photo: <OCR_WITH_REGION>')
     expect(backends.devices()).toEqual(['webgpu'])
   })
 
@@ -74,17 +123,15 @@ describe('readMonitorPhoto', () => {
     backends.webGpu = true
     backends.failing.add('webgpu')
 
-    await expect(readPhoto(backends)).resolves.toBe('read photo: the prompt')
+    await expect(readPhoto(backends)).resolves.toBe('read photo: <OCR_WITH_REGION>')
     expect(backends.devices()).toEqual(['webgpu', 'wasm'])
   })
 
   it('returns null rather than throwing when no backend loads', async () => {
     const backends = new FakeBackends()
     backends.failing.add('wasm')
-    const onModelReady = vi.fn()
 
-    await expect(readPhoto(backends, onModelReady)).resolves.toBeNull()
-    expect(onModelReady).not.toHaveBeenCalled()
+    await expect(readPhoto(backends)).resolves.toBeNull()
   })
 
   it('returns null when the engine itself fails on a photo', async () => {
@@ -112,7 +159,121 @@ describe('readMonitorPhoto', () => {
     await expect(readPhoto(backends)).resolves.toBeNull()
 
     backends.failing.clear()
-    await expect(readPhoto(backends)).resolves.toBe('read photo: the prompt')
+    await expect(readPhoto(backends)).resolves.toBe('read photo: <OCR_WITH_REGION>')
     expect(backends.devices()).toEqual(['wasm', 'wasm'])
+  })
+})
+
+describe('the download half of the bar', () => {
+  it('adds the files up into one bar rather than reporting each', async () => {
+    const backends = new FakeBackends()
+    backends.downloads = [
+      { file: 'vision_encoder.onnx', loaded: 30, total: 90 },
+      { file: 'decoder.onnx', loaded: 10, total: 60 },
+    ]
+
+    // 30 of 90, then 40 of 150 — the second file joining is the total
+    // *growing*, which is what a real load does and why the ratio can dip.
+    expect(downloading(await progressOf(backends))).toEqual([
+      { phase: 'loadingModel', loadedBytes: 30, totalBytes: 90, ratio: 1 / 3 },
+      { phase: 'loadingModel', loadedBytes: 40, totalBytes: 150, ratio: 40 / 150 },
+    ])
+  })
+
+  it('counts a file the runtime reports twice once', async () => {
+    const backends = new FakeBackends()
+    backends.downloads = [
+      { file: 'vision_encoder.onnx', loaded: 30, total: 90 },
+      { file: 'vision_encoder.onnx', loaded: 90, total: 90 },
+    ]
+
+    // Not 120 of 180: the second report is the same file further along.
+    expect(downloading(await progressOf(backends)).at(-1)).toEqual({
+      phase: 'loadingModel',
+      loadedBytes: 90,
+      totalBytes: 90,
+      ratio: 1,
+    })
+  })
+
+  it('goes indeterminate for a file that has not said how big it is', async () => {
+    const backends = new FakeBackends()
+    backends.downloads = [{ file: 'config.json', loaded: 0, total: 0 }]
+
+    // A null ratio rather than a zero: the bar is indeterminate here, and
+    // "0%" is a claim about a total nobody knows yet.
+    expect(downloading(await progressOf(backends))).toEqual([
+      { phase: 'loadingModel', loadedBytes: 0, totalBytes: 0, ratio: null },
+    ])
+  })
+
+  it('says nothing at all when every file came from the cache', async () => {
+    const backends = new FakeBackends()
+
+    expect(downloading(await progressOf(backends))).toEqual([])
+  })
+
+  it('reports nothing once the load has failed', async () => {
+    const backends = new FakeBackends()
+    backends.failing.add('wasm')
+    backends.downloads = [{ file: 'vision_encoder.onnx', loaded: 30, total: 90 }]
+
+    // The files it managed before giving up are not a bar anyone should see
+    // filling: `load` throws before reporting, and the scan ends as a
+    // failure rather than a half-finished download.
+    expect(await progressOf(backends)).toEqual([])
+  })
+})
+
+describe('the reading half of the bar', () => {
+  it('opens the phase at zero, which is the only ready signal there is', async () => {
+    const backends = new FakeBackends()
+    backends.steps = 0
+
+    expect(reading(await progressOf(backends))).toEqual([
+      { phase: 'reading', ratio: 0 },
+      // The engine's own first call is the prompt, and lands on zero too.
+      { phase: 'reading', ratio: 0 },
+    ])
+  })
+
+  it('counts tokens against the budget they are capped at', async () => {
+    const backends = new FakeBackends()
+    backends.steps = 2
+
+    expect(reading(await progressOf(backends)).map((update) => update.ratio)).toEqual([
+      0,
+      0,
+      1 / 400,
+      2 / 400,
+    ])
+  })
+
+  it('never paints past the end of the bar', async () => {
+    const backends = new FakeBackends()
+    backends.load.mockResolvedValueOnce(
+      vi.fn(async (_photo: Blob, _task: string, onStep): Promise<string> => {
+        onStep?.(500, 400)
+
+        return 'over budget'
+      }),
+    )
+
+    expect(reading(await progressOf(backends)).at(-1)).toEqual({ phase: 'reading', ratio: 1 })
+  })
+
+  it('follows the download rather than interleaving with it', async () => {
+    const backends = new FakeBackends()
+    backends.downloads = [{ file: 'vision_encoder.onnx', loaded: 90, total: 90 }]
+    backends.steps = 1
+
+    // One phase change, one way: a bar that went back to downloading would
+    // have to run backwards to do it.
+    expect((await progressOf(backends)).map((update) => update.phase)).toEqual([
+      'loadingModel',
+      'reading',
+      'reading',
+      'reading',
+    ])
   })
 })

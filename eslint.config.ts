@@ -269,6 +269,7 @@ export const PLATFORM_EDGE = [
   'src/lib/appVersion.ts',
   'src/lib/ergBluetooth.ts',
   'src/lib/ergCapture.ts',
+  'src/lib/modelCache.ts',
   'src/lib/monitorPhotoModel.ts',
   'src/lib/persistentStorage.ts',
   'src/lib/swUpdateCheck.ts',

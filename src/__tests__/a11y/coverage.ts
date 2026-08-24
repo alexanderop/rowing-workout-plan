@@ -70,6 +70,7 @@ export const A11Y_COVERAGE = {
   'components/organisms/OrganismPwaInstallPrompt.vue': 'installBanner',
   'components/molecules/MoleculePwaUpdatePrompt.vue': 'updateBanner',
   'components/molecules/MoleculeToastViewport.vue': 'toast',
+  'components/molecules/MoleculeModelStorage.vue': 'settings',
   'views/SettingsView.vue': 'settings',
 } satisfies Readonly<Record<string, SweepId>>
 
