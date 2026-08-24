@@ -1,24 +1,41 @@
-import { Clock, Context, Effect, Layer, Ref } from 'effect'
+import { Clock, Context, Effect, Layer } from 'effect'
 import type { Workout, WorkoutDraft } from '../converters'
 import { decodeStoredWorkout, decodeWorkoutDraft, toWorkout } from '../converters'
 import { DatabaseError, WorkoutInvalidError } from '../errors'
 import { GenerateId } from '../generateId'
 import { db } from '../schema'
-import { tryDb } from './support'
+import { draftValidator, inMemoryTable, rowDecoder, tryDb } from './support'
 
 export type { WorkoutDraft } from '../converters'
 
-const validateDraft = (draft: WorkoutDraft): Effect.Effect<WorkoutDraft, WorkoutInvalidError> =>
-  decodeWorkoutDraft(draft).pipe(
-    Effect.mapError((error) => new WorkoutInvalidError({ message: error.message })),
-  )
+const validateDraft = draftValidator(
+  decodeWorkoutDraft,
+  (message) => new WorkoutInvalidError({ message }),
+)
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- the decode boundary itself
-const decodeRow = (stored: unknown): Effect.Effect<Workout, DatabaseError> =>
-  decodeStoredWorkout(stored).pipe(
-    Effect.mapError((cause) => new DatabaseError({ operation: 'decode workout row', cause })),
-    Effect.map(toWorkout),
-  )
+const decodeRow = rowDecoder('decode workout row', decodeStoredWorkout, toWorkout)
+
+/** See `BenchmarksRepo`'s `buildBenchmark` — both layers mint a row the same way. */
+const buildWorkout = (
+  generateId: () => string,
+): ((draft: WorkoutDraft) => Effect.Effect<Workout, WorkoutInvalidError>) =>
+  Effect.fn('WorkoutsRepo.build')(function* (draft: WorkoutDraft) {
+    const valid = yield* validateDraft(draft)
+    const now = yield* Clock.currentTimeMillis
+    return {
+      ...valid,
+      id: generateId(),
+      // An erg capture knows when the piece *began*, which is not when the row
+      // is written; stamping at write time would misdate every workout by its
+      // own length.
+      startedAt: valid.startedAt ?? now,
+      intervals: valid.intervals ?? [],
+    }
+  })
+
+/** Newest first — the order both layers hand the log back in. */
+const newestFirst = (rows: ReadonlyArray<Workout>): Array<Workout> =>
+  rows.toSorted((left, right) => right.startedAt - left.startedAt)
 
 /**
  * Workouts: what was actually rowed.
@@ -47,7 +64,7 @@ export class WorkoutsRepo extends Context.Service<
   static readonly layer = Layer.effect(
     WorkoutsRepo,
     Effect.gen(function* () {
-      const generateId = yield* GenerateId
+      const build = buildWorkout(yield* GenerateId)
 
       return WorkoutsRepo.of({
         list: Effect.fn('WorkoutsRepo.list')(function* () {
@@ -58,17 +75,7 @@ export class WorkoutsRepo extends Context.Service<
         }),
 
         create: Effect.fn('WorkoutsRepo.create')(function* (draft: WorkoutDraft) {
-          const valid = yield* validateDraft(draft)
-          const now = yield* Clock.currentTimeMillis
-          const workout: Workout = {
-            ...valid,
-            id: generateId(),
-            // An erg capture knows when the piece *began*, which is not when
-            // the row is written; stamping at write time would misdate every
-            // workout by its own length.
-            startedAt: valid.startedAt ?? now,
-            intervals: valid.intervals ?? [],
-          }
+          const workout = yield* build(draft)
           yield* tryDb('create workout', () => db.workouts.add(workout))
           return workout
         }),
@@ -92,52 +99,29 @@ export class WorkoutsRepo extends Context.Service<
     }),
   )
 
-  /** See `BenchmarksRepo.testLayer` — same contract, same semantics. */
+  /**
+   * The in-memory fake. `list` is overridden because the real one reads
+   * through the `startedAt` index: a fake that handed rows back in insertion
+   * order would let a screen that depends on newest-first pass here and fail
+   * on a phone.
+   */
   static readonly testLayer = Layer.effect(
     WorkoutsRepo,
     Effect.gen(function* () {
-      const rows = yield* Ref.make<ReadonlyMap<string, Workout>>(new Map())
-      const generateId = yield* GenerateId
+      const table = yield* inMemoryTable<Workout>('WorkoutsRepo')
+      const build = buildWorkout(yield* GenerateId)
 
       return WorkoutsRepo.of({
+        ...table,
+
         list: Effect.fn('WorkoutsRepo.Test.list')(function* () {
-          const current = [...(yield* Ref.get(rows)).values()]
-          return current.sort((left, right) => right.startedAt - left.startedAt)
+          return newestFirst(yield* table.list())
         }),
 
         create: Effect.fn('WorkoutsRepo.Test.create')(function* (draft: WorkoutDraft) {
-          const valid = yield* validateDraft(draft)
-          const now = yield* Clock.currentTimeMillis
-          const workout: Workout = {
-            ...valid,
-            id: generateId(),
-            startedAt: valid.startedAt ?? now,
-            intervals: valid.intervals ?? [],
-          }
-          yield* Ref.update(rows, (current) => new Map(current).set(workout.id, workout))
+          const workout = yield* build(draft)
+          yield* table.insert(workout)
           return workout
-        }),
-
-        remove: Effect.fn('WorkoutsRepo.Test.remove')(function* (id: string) {
-          yield* Ref.update(rows, (current) => {
-            const next = new Map(current)
-            next.delete(id)
-            return next
-          })
-        }),
-
-        putMany: Effect.fn('WorkoutsRepo.Test.putMany')(function* (
-          incoming: ReadonlyArray<Workout>,
-        ) {
-          yield* Ref.update(rows, (current) => {
-            const next = new Map(current)
-            for (const row of incoming) next.set(row.id, row)
-            return next
-          })
-        }),
-
-        clear: Effect.fn('WorkoutsRepo.Test.clear')(function* () {
-          yield* Ref.set(rows, new Map())
         }),
       })
     }),

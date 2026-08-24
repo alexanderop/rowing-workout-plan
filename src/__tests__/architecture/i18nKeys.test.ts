@@ -60,16 +60,6 @@ const INTERPOLATED = {
       'plans.kind.distancePiece',
     ],
   },
-  'views/PlanWeekView.vue': {
-    reason:
-      'The rotation explainer is one of four sentences, chosen by `rotationNote` — first, middle, last, or the end of the plan.',
-    keys: [
-      'plans.rotation.first',
-      'plans.rotation.middle',
-      'plans.rotation.last',
-      'plans.rotation.final',
-    ],
-  },
   'features/training/components/LogRow.vue': {
     reason:
       'A log row reuses the plan sentences declared for SessionRow — a session reads the same in the log as it did on the day it was set.',
@@ -94,8 +84,22 @@ const INTERPOLATED = {
   },
   'views/SessionView.vue': {
     reason:
-      'The title reuses the session sentences declared above, the kind line reuses the kind labels, and the coaching note is the same four rotation positions said to someone about to row one.',
-    keys: ['plans.coach.first', 'plans.coach.middle', 'plans.coach.last', 'plans.coach.final'],
+      "The title reuses the session sentences declared above and the kind line reuses the kind labels; both sets are declared on SessionRow's entry. The coaching note moved to useRotationText.",
+    keys: [],
+  },
+  'features/training/useRotationText.ts': {
+    reason:
+      'One rotation note, said two ways: described on the week screen and coached on the session screen. Both are the same four positions `rotationNote` chooses between — first, middle, last, or the end of the plan.',
+    keys: [
+      'plans.rotation.first',
+      'plans.rotation.middle',
+      'plans.rotation.last',
+      'plans.rotation.final',
+      'plans.coach.first',
+      'plans.coach.middle',
+      'plans.coach.last',
+      'plans.coach.final',
+    ],
   },
 } as const satisfies Record<string, { reason: string; keys: ReadonlyArray<string> }>
 

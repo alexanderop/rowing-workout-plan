@@ -27,6 +27,16 @@ export const WORKOUTS_KEY = 'workouts'
 export const TRAINING_KEY = 'training'
 
 /**
+ * A write, ready to run: a db program whose every tagged failure has already
+ * been handled with `Effect.catchTag`/`Effect.catchTags`.
+ *
+ * Named because it is the contract at two boundaries rather than one — this
+ * module's `dbMutation` and `useDbWrite`'s `write` — and a composable outside
+ * `src/db` cannot spell `DbServices`, which is `layer.ts`'s and stays there.
+ */
+export type DbProgram = Effect.Effect<unknown, never, DbServices>
+
+/**
  * The write edge of the db: a fn atom that executes a mutation program.
  *
  * Effect still does not stop at the Vue boundary. The argument type only
@@ -34,10 +44,14 @@ export const TRAINING_KEY = 'training'
  * failure was already handled with `Effect.catchTag`/`Effect.catchTags` — so
  * an unhandled failure is a type error here, exactly as it is at `runDb`.
  * Components compose the program (repo call, success taps, failure branches)
- * and hand it to the setter from
- * `useAtomSet(() => dbMutation, { mode: 'promise' })`; the returned promise
- * rejects only on a defect, which Vue routes to `app.config.errorHandler`
- * when the handler returns it.
+ * and reach this through `useDbWrite`, which is where the in-flight guard and
+ * the defect handling live. Do not call `useAtomSet(() => dbMutation)`
+ * directly: the setter's promise resolves with `undefined` on a *defect*
+ * rather than rejecting, so a crash mid-write reaches neither
+ * `app.config.errorHandler` nor the `unhandledrejection` backstop in
+ * `main.ts` — it simply disappears. `useDbWrite.write` catches the defect
+ * inside the program and rethrows it out of the promise, which is what makes
+ * those two backstops work.
  *
  * A landed write invalidates the reactivity keys listed here, so read atoms
  * re-read from disk. Both keys are invalidated on every write rather than
@@ -50,7 +64,7 @@ export const TRAINING_KEY = 'training'
  * one still in flight — a delete silently undone by a quick tap. With it,
  * every program runs its own fiber to completion.
  */
-export const dbMutation = dbRuntime.fn(
-  (program: Effect.Effect<unknown, never, DbServices>) => program,
-  { reactivityKeys: [WORKOUTS_KEY, TRAINING_KEY], concurrent: true },
-)
+export const dbMutation = dbRuntime.fn((program: DbProgram) => program, {
+  reactivityKeys: [WORKOUTS_KEY, TRAINING_KEY],
+  concurrent: true,
+})

@@ -53,10 +53,13 @@ class FakeDevice extends EventTarget implements ErgDevice {
   constructor(readonly name = 'PM5 430123456') {
     super()
 
-    const device = this
+    // An arrow, not `const device = this`: a property getter's own `this` is
+    // the object literal, so the flag has to be reached through a closure
+    // that captured the device lexically.
+    const isConnected = (): boolean => this.connected
     this.gatt = {
       get connected(): boolean {
-        return device.connected
+        return isConnected()
       },
       connect: async () => this.gatt,
       disconnect: this.disconnect,

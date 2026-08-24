@@ -81,6 +81,29 @@ describe('backup export/import', () => {
     expect(enrolments).toHaveLength(2)
   })
 
+  it('leaves exactly one enrolment active when the backup itself carries two', async () => {
+    // The transaction deactivates the rows already on disk; it says nothing
+    // about the batch landing on top of them. A backup file is untrusted
+    // input off disk like any other, and a hand-edited or half-merged one
+    // carrying two active rows restored two — against `progress.ts`, which
+    // documents its `startedAt` tiebreak as unreachable *because* `putMany`
+    // deactivates. Asserted here as well as in the unit tier because only
+    // this one runs the real transaction.
+    await runDb(
+      importData({
+        ...EMPTY_BACKUP,
+        enrolments: [
+          { id: 'older', planId: 'pete5k', startedAt: 1_000, active: true },
+          { id: 'newer', planId: 'pete5k-lite', startedAt: 2_000, active: true },
+        ],
+      }).pipe(Effect.orDie),
+    )
+
+    const enrolments = await runDb(listEnrolments.pipe(Effect.orDie))
+    expect(enrolments.filter((row) => row.active).map((row) => row.id)).toEqual(['newer'])
+    expect(enrolments).toHaveLength(2)
+  })
+
   it('rejects payloads that are not backups with a tagged error', async () => {
     // The failure stays in the error channel all the way to the component,
     // which is what lets the settings view tell "not a backup" apart from

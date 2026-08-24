@@ -253,6 +253,7 @@ export const CORE = [
   'src/features/*/session.ts',
   'src/features/*/targets.ts',
   'src/features/*/types.ts',
+  'src/features/*/week.ts',
   'src/lib/installPlatform.ts',
   'src/lib/numericInput.ts',
   'src/lib/utils.ts',

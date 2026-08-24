@@ -9,11 +9,9 @@ import TemplatePageLayout from '@/components/templates/TemplatePageLayout.vue'
 
 import { activePlanAtom, benchmarkAtom, completedSessionsAtom } from '@/features/training/atoms'
 import SessionRow from '@/features/training/components/SessionRow.vue'
-import { nextSession, positionFor, rotationFor } from '@/features/training/schedule'
+import { nextSession, positionFor } from '@/features/training/schedule'
 import { describeSession, sessionDistanceM, sessionDurationMs } from '@/features/training/session'
-import { targetFor } from '@/features/training/targets'
-import type { SessionTarget } from '@/features/training/targets'
-import type { PlanSession } from '@/features/training/types'
+import { targetInWeek, weekAt, weekRows } from '@/features/training/week'
 import { useNow } from '@/composables/useNow'
 import { useTargetText } from '@/features/training/useTargetText'
 import { useTrainingFormat } from '@/features/training/useTrainingFormat'
@@ -84,27 +82,17 @@ const session = computed(() => {
 /** The week the next session sits in — the rest of it is listed underneath. */
 const week = computed(() => {
   const at = position.value
-  const current = activePlan.value
-  if (at === null || current === null) return null
-
-  return current.weeks.find((candidate) => candidate.index === at.weekIndex) ?? null
+  return at === null ? null : weekAt(activePlan.value?.weeks ?? [], at.weekIndex)
 })
 
-function targetOf(planSession: PlanSession): SessionTarget | null {
-  const benchmarkMs = benchmark2kMs.value
+const target = computed(() => {
+  const current = session.value
   const at = position.value
-  const current = activePlan.value
-  if (benchmarkMs === null || at === null || current === null) return null
+  const plan = activePlan.value
+  if (current === null || at === null || plan === null) return null
 
-  return Result.getOrElse(
-    Result.flatMap(rotationFor(current, at.weekIndex), (rotation) =>
-      targetFor(planSession, benchmarkMs, rotation),
-    ),
-    () => null,
-  )
-}
-
-const target = computed(() => (session.value === null ? null : targetOf(session.value)))
+  return targetInWeek(plan, current, benchmark2kMs.value, at.weekIndex)
+})
 
 // The same rule the week list underneath uses, so one screen cannot print two
 // different targets for one session — a steady row reads as a band in both.
@@ -128,13 +116,14 @@ const durationText = computed(() => {
   )
 })
 
+// The same core projection the week-detail screen lists, so the card above
+// and the list below cannot price one session two ways.
 const rows = computed(() =>
-  (week.value?.sessions ?? []).map((planSession, index) => ({
-    session: planSession,
-    position: index + 1,
-    target: targetOf(planSession),
-    done: completedIds.value.has(planSession.id),
-  })),
+  weekRows(week.value, {
+    plan: activePlan.value,
+    benchmark2kMs: benchmark2kMs.value,
+    completedIds: completedIds.value,
+  }),
 )
 </script>
 

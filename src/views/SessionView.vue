@@ -11,7 +11,6 @@ import { PLANS } from '@/features/training/catalog'
 import LogWorkoutSheet from '@/features/training/components/LogWorkoutSheet.vue'
 import TargetsCard from '@/features/training/components/TargetsCard.vue'
 import { formatSplit } from '@/features/training/pace'
-import { rotationFor, rotationNote } from '@/features/training/schedule'
 import {
   describeSession,
   findSession,
@@ -20,9 +19,12 @@ import {
   pieceDistanceM,
   sessionDistanceM,
 } from '@/features/training/session'
-import { isRotationShifted, targetFor } from '@/features/training/targets'
+import { isRotationShifted } from '@/features/training/targets'
+import { useRotationText } from '@/features/training/useRotationText'
+import { targetInWeek } from '@/features/training/week'
 
 const { t } = useI18n()
+const { coachText: coachSentence } = useRotationText()
 const route = useRoute()
 
 // The session id names exactly one session in exactly one plan, so the whole
@@ -79,15 +81,9 @@ const subtitle = computed(() => {
 /** The whole point of the screen, and `null` until there is a 2k to derive it from. */
 const target = computed(() => {
   const current = location.value
-  const benchmarkMs = benchmark2kMs.value
-  if (current === null || benchmarkMs === null) return null
+  if (current === null) return null
 
-  return Result.getOrElse(
-    Result.flatMap(rotationFor(current.plan, current.week.index), (rotation) =>
-      targetFor(current.session, benchmarkMs, rotation),
-    ),
-    () => null,
-  )
+  return targetInWeek(current.plan, current.session, benchmark2kMs.value, current.week.index)
 })
 
 /** One piece of this session, written out — the same distance on every row. */
@@ -124,12 +120,7 @@ const coachText = computed(() => {
   const current = location.value
   if (current === null || !isRotationShifted(current.session.kind)) return ''
 
-  return Result.getOrElse(
-    Result.map(rotationNote(current.plan, current.week.index), (note) =>
-      t(`plans.coach.${note.variant}`, { rotation: note.rotation, nextWeek: note.nextWeek }),
-    ),
-    () => '',
-  )
+  return coachSentence.value(current.plan, current.week.index)
 })
 
 const backTo = computed(() => {

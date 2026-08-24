@@ -46,7 +46,22 @@ handful that matter. So the scope is written out by hand, and the rule for
 editing it is: a file belongs in `mutate` when the unit tier owns its logic
 end to end.
 
-Three things are deliberately outside it:
+Written out by hand, but not remembered by hand. The list is the functional
+core — `CORE` in `eslint.config.ts` — plus the db programs the unit tier
+drives, and two lists of the same thing drift. This one drifts _quietly_: a
+core module left out is not an error, it is simply never mutated, and the run
+still reports 100% because the mutants that would have survived were never
+generated. `src/__tests__/architecture/mutationScope.test.ts` reads both
+configs as text and fails on a `CORE` entry that is not in `mutate` and has no
+declared reason, the way `functionalCore.test.ts` grades the layer globs
+themselves. `week.ts` is why it exists: added to `CORE`, specced in the unit
+tier, and invisible here until the check was written.
+
+`src/lib/utils.ts` is the one `CORE` entry that stays out, declared in that
+file's `UNMUTATED_CORE` with the reason: `cn()` has no unit spec at all, so
+every mutant in it would survive by construction.
+
+Three more things are deliberately outside it:
 
 - `src/db/repositories/**`. Half of `notes.ts` is the Dexie-backed layer,
   which only the browser tier exercises; the other half is the in-memory fake.
@@ -140,7 +155,7 @@ A survivor is a question, not a verdict. Work through it in this order:
    the survivor is a scope bug. Fix `mutate`, not the test.
 3. **Otherwise it is a missing assertion.** Write the test that kills it.
 
-The scope sits at 100%: 58 mutants, all killed, nothing uncovered. It did
+The scope sits at 100%: 651 mutants, all killed, nothing uncovered. It did
 not start there. The first run scored 86.89% with eight survivors, and each one
 resolved to a different step of the list above, which makes them the worked
 examples:

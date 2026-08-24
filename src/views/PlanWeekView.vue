@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { AsyncResult, useAtomValue } from '@effect/atom-vue'
-import { Result } from 'effect'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -10,12 +9,11 @@ import { PLANS } from '@/features/training/catalog'
 import SessionRow from '@/features/training/components/SessionRow.vue'
 import WeekStrip from '@/features/training/components/WeekStrip.vue'
 import { kilometres, weekDistanceM } from '@/features/training/session'
-import { rotationFor, rotationNote } from '@/features/training/schedule'
-import { targetFor } from '@/features/training/targets'
-import type { SessionTarget } from '@/features/training/targets'
-import type { PlanSession } from '@/features/training/types'
+import { useRotationText } from '@/features/training/useRotationText'
+import { weekAt, weekRows } from '@/features/training/week'
 
 const { t } = useI18n()
+const { rotationText: rotationSentence } = useRotationText()
 const route = useRoute()
 
 // The plan comes from the bundled catalogue, not from the database — an
@@ -23,9 +21,7 @@ const route = useRoute()
 // whether or not you are on that plan.
 const plan = computed(() => PLANS.find((candidate) => candidate.id === route.params.planId) ?? null)
 const weekIndex = computed(() => Number(route.params.week))
-const week = computed(
-  () => plan.value?.weeks.find((candidate) => candidate.index === weekIndex.value) ?? null,
-)
+const week = computed(() => weekAt(plan.value?.weeks ?? [], weekIndex.value))
 
 const benchmark = useAtomValue(() => benchmarkAtom)
 const completed = useAtomValue(() => completedSessionsAtom)
@@ -33,40 +29,17 @@ const completed = useAtomValue(() => completedSessionsAtom)
 const benchmark2kMs = computed(
   () => AsyncResult.getOrElse(benchmark.value, () => null)?.timeMs ?? null,
 )
-const completedIds = computed(() =>
-  // SAFETY: the widening is from `Set<string>` to `ReadonlySet<string>`, which
-  // is the atom's own success type — it only stops the empty fallback from
-  // narrowing the computed to a mutable Set. Nothing is claimed about content.
-  AsyncResult.getOrElse(completed.value, () => new Set<string>() as ReadonlySet<string>),
-)
+const completedIds = computed(() => AsyncResult.getOrElse(completed.value, () => new Set<string>()))
 
-/**
- * The target for one session, or `null`.
- *
- * Two ways to get nothing and one answer for both: no 2k has been entered
- * yet, or this week is not one this plan has. The row lists the session
- * either way — what you are meant to row does not depend on knowing how fast.
- */
-function targetOf(session: PlanSession): SessionTarget | null {
-  const current = plan.value
-  const benchmarkMs = benchmark2kMs.value
-  if (current === null || benchmarkMs === null) return null
-
-  return Result.getOrElse(
-    Result.flatMap(rotationFor(current, weekIndex.value), (rotation) =>
-      targetFor(session, benchmarkMs, rotation),
-    ),
-    () => null,
-  )
-}
-
+// Positions, targets and the done flags are one core function, shared with
+// Today: two screens listing one week cannot print two different answers for
+// the same session.
 const rows = computed(() =>
-  (week.value?.sessions ?? []).map((session, index) => ({
-    session,
-    position: index + 1,
-    target: targetOf(session),
-    done: completedIds.value.has(session.id),
-  })),
+  weekRows(week.value, {
+    plan: plan.value,
+    benchmark2kMs: benchmark2kMs.value,
+    completedIds: completedIds.value,
+  }),
 )
 
 const summary = computed(() =>
@@ -84,14 +57,7 @@ const summary = computed(() =>
  */
 const rotationText = computed(() => {
   const current = plan.value
-  if (current === null) return ''
-
-  return Result.getOrElse(
-    Result.map(rotationNote(current, weekIndex.value), (note) =>
-      t(`plans.rotation.${note.variant}`, { rotation: note.rotation, nextWeek: note.nextWeek }),
-    ),
-    () => '',
-  )
+  return current === null ? '' : rotationSentence.value(current, weekIndex.value)
 })
 
 const title = computed(() => t('plans.week.title', { week: weekIndex.value }))

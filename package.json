@@ -30,7 +30,7 @@
     "test:e2e:prebuilt": "bddgen && playwright test",
     "type-check": "vue-tsc --build",
     "lint:oxlint": "oxlint . --fix --ignore-path .gitignore",
-    "lint:oxlint:check": "oxlint . --ignore-path .gitignore",
+    "lint:oxlint:check": "oxlint . --ignore-path .gitignore --max-warnings 0",
     "lint:eslint": "eslint . --fix --cache",
     "lint:eslint:check": "eslint . --cache --max-warnings 0",
     "lint:md": "markdownlint-cli2 \"**/*.md\" \"#node_modules\"",

@@ -15,8 +15,9 @@
  *   refresh them. The feature owns the atom — `src/features/training/atoms.ts`
  *   is the worked example — because what a screen reads is the feature's
  *   business; what it reads it *through* is this surface's.
- * - Writes run through the `dbMutation` fn atom, which invalidates those
- *   keys after the program lands.
+ * - Writes run through `useDbWrite`, the composable over the `dbMutation` fn
+ *   atom: it invalidates those keys after the program lands, holds the
+ *   in-flight guard, and rethrows a defect the atom would otherwise swallow.
  * - `runDb` remains the imperative edge for programs that read and leave
  *   (backup export, test assertions) — nothing there to invalidate.
  *
@@ -27,6 +28,7 @@
  * imports `./errors` directly.
  */
 export { dbMutation, dbRuntime, TRAINING_KEY, WORKOUTS_KEY } from './atoms'
+export type { DbProgram } from './atoms'
 export { exportData, importData } from './backup'
 export type {
   Benchmark,

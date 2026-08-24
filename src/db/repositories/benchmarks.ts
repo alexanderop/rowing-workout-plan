@@ -1,45 +1,36 @@
-import { Clock, Context, Effect, Layer, Ref } from 'effect'
+import { Clock, Context, Effect, Layer } from 'effect'
 import type { Benchmark, BenchmarkDraft } from '../converters'
 import { decodeBenchmarkDraft, decodeStoredBenchmark, toBenchmark } from '../converters'
 import { BenchmarkInvalidError, DatabaseError } from '../errors'
 import { GenerateId } from '../generateId'
 import { db } from '../schema'
-import { tryDb } from './support'
+import { draftValidator, inMemoryTable, rowDecoder, tryDb } from './support'
 
 export type { BenchmarkDraft } from '../converters'
 
-/**
- * Normalizes and validates a draft. Both layers run it, so the in-memory fake
- * cannot accept a benchmark the real repository would reject.
- */
-const validateDraft = (
-  draft: BenchmarkDraft,
-): Effect.Effect<BenchmarkDraft, BenchmarkInvalidError> =>
-  decodeBenchmarkDraft(draft).pipe(
-    Effect.mapError((error) => new BenchmarkInvalidError({ message: error.message })),
-  )
+const validateDraft = draftValidator(
+  decodeBenchmarkDraft,
+  (message) => new BenchmarkInvalidError({ message }),
+)
+
+const decodeRow = rowDecoder('decode benchmark row', decodeStoredBenchmark, toBenchmark)
 
 /**
- * Turns one row off disk into a domain benchmark, validating it on the way.
+ * What a new benchmark row looks like: validate, stamp, mint an id.
  *
- * A row that fails is a `DatabaseError` rather than a tag of its own: the only
- * honest response to "the store handed back something that is not a benchmark"
- * is the same as to "the store would not answer". The `SchemaError` rides
- * along as the cause, so the console still says which field was wrong.
- *
- * One bad row fails the whole read, deliberately. `StoredDbBenchmark` already
- * accepts every shape this app has ever written, so a row that misses it is
- * damaged rather than merely old — and quietly dropping it would show the user
- * a short list they might then export over their last good backup.
+ * Shared by both layers rather than written out in each, because "which
+ * fields a create fills in" is the one part of a fake that has to match the
+ * real thing exactly — a test that passes against a fake stamping its own
+ * `recordedAt` proves nothing about the table that does not.
  */
-// IndexedDB is untrusted input by this project's rules; `decodeStoredBenchmark`
-// below is the parse `no-unknown-parameters` asks for, and this is its input.
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- the decode boundary itself
-const decodeRow = (stored: unknown): Effect.Effect<Benchmark, DatabaseError> =>
-  decodeStoredBenchmark(stored).pipe(
-    Effect.mapError((cause) => new DatabaseError({ operation: 'decode benchmark row', cause })),
-    Effect.map(toBenchmark),
-  )
+const buildBenchmark = (
+  generateId: () => string,
+): ((draft: BenchmarkDraft) => Effect.Effect<Benchmark, BenchmarkInvalidError>) =>
+  Effect.fn('BenchmarksRepo.build')(function* (draft: BenchmarkDraft) {
+    const valid = yield* validateDraft(draft)
+    const now = yield* Clock.currentTimeMillis
+    return { id: generateId(), kind: valid.kind, timeMs: valid.timeMs, recordedAt: now }
+  })
 
 /**
  * The benchmarks repository as an Effect service: the class is both the DI key
@@ -63,7 +54,7 @@ export class BenchmarksRepo extends Context.Service<
   static readonly layer = Layer.effect(
     BenchmarksRepo,
     Effect.gen(function* () {
-      const generateId = yield* GenerateId
+      const build = buildBenchmark(yield* GenerateId)
 
       return BenchmarksRepo.of({
         list: Effect.fn('BenchmarksRepo.list')(function* () {
@@ -72,14 +63,7 @@ export class BenchmarksRepo extends Context.Service<
         }),
 
         create: Effect.fn('BenchmarksRepo.create')(function* (draft: BenchmarkDraft) {
-          const valid = yield* validateDraft(draft)
-          const now = yield* Clock.currentTimeMillis
-          const benchmark: Benchmark = {
-            id: generateId(),
-            kind: valid.kind,
-            timeMs: valid.timeMs,
-            recordedAt: now,
-          }
+          const benchmark = yield* build(draft)
           yield* tryDb('create benchmark', () => db.benchmarks.add(benchmark))
           return benchmark
         }),
@@ -104,55 +88,23 @@ export class BenchmarksRepo extends Context.Service<
   )
 
   /**
-   * Ref-backed in-memory fake — no IndexedDB, so full programs (exportData,
-   * importData, anything composed over the repo) run in the Node unit tier.
-   * Semantics mirror the production layer: timestamps come from the Clock
-   * service (TestClock in tests), putMany overwrites rows with matching ids.
+   * The in-memory fake — the shared table from `./support`, plus the one
+   * operation that is this table's own. Nothing about a benchmark needs more
+   * than `inMemoryTable` gives: no ordering, no cross-row invariant.
    */
   static readonly testLayer = Layer.effect(
     BenchmarksRepo,
     Effect.gen(function* () {
-      const rows = yield* Ref.make<ReadonlyMap<string, Benchmark>>(new Map())
-      const generateId = yield* GenerateId
+      const table = yield* inMemoryTable<Benchmark>('BenchmarksRepo')
+      const build = buildBenchmark(yield* GenerateId)
 
       return BenchmarksRepo.of({
-        list: Effect.fn('BenchmarksRepo.Test.list')(function* () {
-          return [...(yield* Ref.get(rows)).values()]
-        }),
+        ...table,
 
         create: Effect.fn('BenchmarksRepo.Test.create')(function* (draft: BenchmarkDraft) {
-          const valid = yield* validateDraft(draft)
-          const now = yield* Clock.currentTimeMillis
-          const benchmark: Benchmark = {
-            id: generateId(),
-            kind: valid.kind,
-            timeMs: valid.timeMs,
-            recordedAt: now,
-          }
-          yield* Ref.update(rows, (current) => new Map(current).set(benchmark.id, benchmark))
+          const benchmark = yield* build(draft)
+          yield* table.insert(benchmark)
           return benchmark
-        }),
-
-        remove: Effect.fn('BenchmarksRepo.Test.remove')(function* (id: string) {
-          yield* Ref.update(rows, (current) => {
-            const next = new Map(current)
-            next.delete(id)
-            return next
-          })
-        }),
-
-        putMany: Effect.fn('BenchmarksRepo.Test.putMany')(function* (
-          incoming: ReadonlyArray<Benchmark>,
-        ) {
-          yield* Ref.update(rows, (current) => {
-            const next = new Map(current)
-            for (const row of incoming) next.set(row.id, row)
-            return next
-          })
-        }),
-
-        clear: Effect.fn('BenchmarksRepo.Test.clear')(function* () {
-          yield* Ref.set(rows, new Map())
         }),
       })
     }),

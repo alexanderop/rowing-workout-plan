@@ -46,7 +46,7 @@ kind and reading a composable starts with knowing which you are looking at.
 | **Browser API wrapper**     | Subscribes to something the platform owns; returns the reading and an `isSupported` | `useKeyboardInset`, `useTouchDevice`                        |
 | **Derived value**           | Takes a reactive argument, returns a `computed` over it                             | `useNoteAge`                                                |
 | **Module-scoped singleton** | State at module scope, one per document; the function is just the accessor          | `useTheme`, `useLocale`, `usePwaUpdate`, `useInstallPrompt` |
-| **Injection factory**       | Calls `inject`-flavoured setup, returns a plain function                            | `useReportFailure`                                          |
+| **Injection factory**       | Calls `inject`-flavoured setup, returns a plain function                            | `useReportFailure`, `useDbWrite`                            |
 
 ## Arguments
 

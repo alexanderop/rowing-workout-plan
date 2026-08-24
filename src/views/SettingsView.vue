@@ -17,12 +17,12 @@ import {
   MoleculeDialogHeader,
   MoleculeDialogTitle,
 } from '@/components/molecules/dialog'
-import { useAtomSet } from '@effect/atom-vue'
+import { useDbWrite } from '@/composables/useDbWrite'
 import { useInstallPrompt } from '@/composables/useInstallPrompt'
 import { useLocale } from '@/composables/useLocale'
 import { useReportFailure } from '@/composables/useReportFailure'
 import { useTheme } from '@/composables/useTheme'
-import { dbMutation, deleteAllData, exportData, importData, runDb } from '@/db'
+import { deleteAllData, exportData, importData, runDb } from '@/db'
 import type { SupportedLocale } from '@/i18n'
 import { appVersion, formatBuildTime } from '@/lib/appVersion'
 import { downloadBackup, readBackupFile } from '@/lib/backupFile'
@@ -40,10 +40,12 @@ const formattedBuildTime = computed(() => formatBuildTime(appVersion.buildTime, 
 const { canInstall, isInstalled } = useInstallPrompt()
 const installDialogOpen = ref(false)
 
-// Import writes rows, so it runs through the mutation atom: when the program
-// lands, the read atoms are invalidated and re-read the imported data — no
-// manual store reload. Export only reads, so it stays on `runDb`.
-const runMutation = useAtomSet(() => dbMutation, { mode: 'promise' })
+// Import and delete write rows, so they run through the mutation atom: when
+// the program lands, the read atoms are invalidated and re-read — no manual
+// store reload. Export only reads, so it stays on `runDb`. The guard the
+// composable carries is what stops a second tap on Delete everything from
+// starting a second wipe behind the first.
+const { isWriting, write } = useDbWrite()
 
 // The shared failure branch: a structured log for the developer, a toast for
 // the user — see useReportFailure for why it is an Effect.
@@ -110,8 +112,8 @@ async function handleImportFile(event: Event): Promise<void> {
   // distinct ways to fail, matched by tag: a payload that is not a backup
   // gets its own message, an unreadable file stays generic. A tag left out of
   // `catchTags` stays in the error channel, so adding a third failure to the
-  // pipeline breaks the build at `runMutation` until it is handled here.
-  await runMutation(
+  // pipeline breaks the build at the write edge until it is handled here.
+  await write(
     readBackupFile(file).pipe(
       Effect.flatMap(importData),
       Effect.tap(() => Effect.sync(() => toast.showToast(t('settings.data.importSuccess')))),
@@ -140,16 +142,25 @@ const confirmDeleteOpen = ref(false)
  * dialog open over a failed action reads as "press it again".
  */
 async function handleDeleteAll(): Promise<void> {
-  await runMutation(
+  await write(
     deleteAllData.pipe(
       Effect.tap(() => Effect.sync(() => toast.showToast(t('settings.data.deleteSuccess')))),
       Effect.catchTag(
         'Db.DatabaseError',
         reportFailure('delete all data', t('settings.data.deleteError')),
       ),
+      // Inside the program rather than after the await, so it holds on the
+      // path the await does not return from: `write` rethrows a defect, which
+      // used to leave the dialog standing over a wipe that had already
+      // stopped — the "press it again" the paragraph above rules out, and with
+      // no toast either, since a defect reaches neither branch above.
+      Effect.ensuring(
+        Effect.sync(() => {
+          confirmDeleteOpen.value = false
+        }),
+      ),
     ),
   )
-  confirmDeleteOpen.value = false
 }
 </script>
 
@@ -298,7 +309,15 @@ async function handleDeleteAll(): Promise<void> {
           </MoleculeDialogClose>
           <!-- Not a DialogClose: the dialog closes when the write lands, not
                when the button is pressed. -->
-          <AtomButton variant="destructive" class="w-full sm:w-auto" @click="handleDeleteAll">
+          <!-- Disabled while the wipe runs: the dialog deliberately stays open
+               until the program lands, so without this the confirming button
+               is the one control on screen that still invites a second tap. -->
+          <AtomButton
+            variant="destructive"
+            class="w-full sm:w-auto"
+            :disabled="isWriting"
+            @click="handleDeleteAll"
+          >
             {{ t('settings.data.confirmDelete.confirm') }}
           </AtomButton>
         </MoleculeDialogFooter>
