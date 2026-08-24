@@ -4,6 +4,7 @@ import { Effect } from 'effect'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TemplatePageLayout from '@/components/templates/TemplatePageLayout.vue'
+import MoleculeModelStorage from '@/components/molecules/MoleculeModelStorage.vue'
 import OrganismPwaInstallDialog from '@/components/organisms/OrganismPwaInstallDialog.vue'
 import AtomButton from '@/components/atoms/AtomButton.vue'
 import AtomLabel from '@/components/atoms/AtomLabel.vue'
@@ -243,6 +244,8 @@ async function handleDeleteAll(): Promise<void> {
           </div>
         </div>
       </section>
+
+      <MoleculeModelStorage />
 
       <section class="flex flex-col gap-3">
         <h2 class="text-section-title font-semibold">{{ t('settings.about.title') }}</h2>

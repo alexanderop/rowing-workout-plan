@@ -255,6 +255,25 @@ const de: MessageSchema = {
         confirm: 'Ja, alles löschen',
       },
     },
+    models: {
+      title: 'Heruntergeladene Modelle',
+      description:
+        'Manche Funktionen lesen deine Fotos auf diesem Gerät, statt sie irgendwohin zu schicken — mit einem Modell, das die App einmal herunterlädt. Es bleibt auf diesem Gerät und du kannst es entfernen; der nächste Scan lädt es einfach erneut.',
+      checking: 'Prüfe, was gespeichert ist …',
+      empty:
+        'Noch nichts heruntergeladen. Der Foto-Leser kommt, sobald du das Log-Formular zum ersten Mal aus einem Foto ausfüllst.',
+      usage: '{size} · {files} Dateien',
+      usedBy: {
+        monitorPhoto: 'Liest den Monitor, wenn du das Log-Formular aus einem Foto ausfüllst.',
+        runtime:
+          'Die Engine, auf der die Modelle laufen. Das Entfernen ist unbedenklich — sie kommt mit dem nächsten Scan zurück.',
+      },
+      remove: 'Entfernen',
+      removing: 'Wird entfernt …',
+      removeLabel: '{model} entfernen',
+      removed: '{size} freigegeben',
+      removeError: 'Dieses Modell ließ sich nicht entfernen',
+    },
     about: {
       title: 'Über',
       version: 'Version',

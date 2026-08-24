@@ -34,8 +34,13 @@
  * download is ~215 MB on the WASM path and ~360 MB on WebGPU, where half
  * precision costs bytes to buy speed — against SmolVLM's ~500 MB for a
  * reading that never once came out right.
+ *
+ * Exported because the settings screen lists what this app has downloaded
+ * and has to say which row is this one. A repository id copied over there
+ * would be a second copy that can go stale into a *wrong* label — naming a
+ * model the device no longer holds.
  */
-const MODEL_ID = 'onnx-community/Florence-2-base-ft'
+export const MODEL_ID = 'onnx-community/Florence-2-base-ft'
 
 /**
  * Per-submodel weights, from the transformers.js Florence-2 demo. The
