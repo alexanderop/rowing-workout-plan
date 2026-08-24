@@ -1,23 +1,23 @@
 import { Result, Schema } from 'effect'
+import type { OcrLine } from '@/lib/ocr'
 import { durationMsFor } from './pace'
 
 /**
- * Turning a vision model's reading of a monitor photo into a workout draft.
+ * Turning a text recogniser's reading of a monitor photo into a workout
+ * draft.
  *
- * The model (src/lib/monitorPhotoModel.ts) is asked for one thing only:
- * *where every word on the photo is and what it says*. It is never asked
- * which number is the distance, never asked to convert `2:44.5` into
- * seconds, never asked to fill in a JSON shape. A small model asked to fill
- * a template copies the template back — the 500M SmolVLM this feature
- * shipped on returned the prompt's own `<total metres rowed>` placeholders,
- * word for word, and the feature never once read a real photo. Asked instead
- * to transcribe with boxes, a *smaller* model (Florence-2-base-ft, 0.23B)
- * reads a PM5 correctly in about a second.
+ * The models (src/lib/monitorPhotoModel.ts) are asked for one thing only:
+ * *where every word on the photo is and what it says*. Nothing above them is
+ * asked which number is the distance, or to convert `2:44.5` into seconds,
+ * or to fill in a JSON shape. A model asked to fill a template copies the
+ * template back — the 500M SmolVLM this feature first shipped on returned
+ * the prompt's own `<total metres rowed>` placeholders, word for word, and
+ * never once read a real photo.
  *
  * So every judgement lives here, in ordinary code that can be graded:
  *
- * - **Which token is a value.** A PM5 draws values roughly twice the height
- *   of the unit labels beside them, so a token shorter than half the tallest
+ * - **Which line is a value.** A PM5 draws values roughly twice the height
+ *   of the unit labels beside them, so a line shorter than half the tallest
  *   one is furniture, not a number. Without this the `/500m` under the pace
  *   reads as a 500 metre row.
  * - **Which field a value is.** The words to its right, on its own line —
@@ -46,14 +46,6 @@ import { durationMsFor } from './pace'
  */
 
 /**
- * What the model is asked. Florence-2 takes a task token rather than an
- * instruction — this one means "every line of text, with its box" — and the
- * model module hands it to the processor, which expands it into the sentence
- * the weights were trained on. Transcription only, for the reason above.
- */
-export const MONITOR_PHOTO_TASK = '<OCR_WITH_REGION>'
-
-/**
  * A photo the parser could not turn into a workout: no transcription in the
  * reply, or numbers that do not add up to a loggable row. One tag with a
  * reason rather than two tags, because no caller branches on which — the
@@ -70,60 +62,24 @@ export class MonitorPhotoError extends Schema.TaggedError<MonitorPhotoError>()(
 ) {}
 
 /**
- * One line the model transcribed, and where it sat. Coordinates are
- * Florence-2's own thousandths-of-the-image buckets, kept exactly as the
- * reply writes them: only *relative* position is ever asked of them — is
- * this word right of that number, on the same line — so the photo's pixel
- * size never has to come along.
+ * How sure the recogniser has to be of a line before this reads it as one.
+ *
+ * A photographed erg is not a page: the PM5's six round rubber buttons and
+ * the frame's own edges come back as lines of text too. Confidence does not
+ * sort them from the screen — on the captures the buttons run right up
+ * through the range the real lines occupy, and the *lowest* confidence on
+ * either photo belongs to a real word — so this is a floor under the obvious
+ * noise, not a filter. Both captures read correctly without it, on the
+ * height rule below alone.
+ *
+ * It is here for the one case that rule cannot catch, because it is that
+ * rule's own input: a misread box that is also *tall* resets the scale every
+ * value is measured against, and one tall enough puts every real value under
+ * the half-height line at once, so the photo fails for having no values on
+ * it. A line the recogniser barely believes should not get to decide how big
+ * a digit is.
  */
-interface OcrToken {
-  readonly text: string
-  readonly left: number
-  readonly top: number
-  readonly right: number
-  readonly bottom: number
-}
-
-/** The four corners Florence-2 writes after every line, as `<loc_n>` pairs. */
-const QUAD = /(?:<loc_\d+>){8}/gu
-const LOC = /<loc_(\d+)>/gu
-
-/**
- * The tokenizer's own furniture, which a reply is wrapped and interleaved
- * with — `</s>`, `<s>`, `<pad>`. Anything in angle brackets, rather than a
- * list of the ones seen so far: a monitor has no `<` on it, so nothing the
- * PM5 displays can be lost this way.
- */
-const SPECIAL_TOKEN = /<[^>]*>/gu
-
-/**
- * The reply as lines with boxes. A Florence-2 region reply is a flat
- * alternation — text, eight `<loc_>` corners, text, eight corners — so each
- * quad closes the line whose text ran from the end of the quad before it.
- */
-function tokensFrom(reply: string): ReadonlyArray<OcrToken> {
-  const quads = [...reply.matchAll(QUAD)]
-
-  return quads.map((quad, index) => {
-    const previous = quads[index - 1]
-    const from = previous === undefined ? 0 : previous.index + previous[0].length
-    const locs = [...quad[0].matchAll(LOC)].map(([, value]) => Number(value))
-    const xs = locs.filter((_, at) => at % 2 === 0)
-    const ys = locs.filter((_, at) => at % 2 === 1)
-
-    return {
-      text: reply.slice(from, quad.index).replaceAll(SPECIAL_TOKEN, '').trim(),
-      left: Math.min(...xs),
-      top: Math.min(...ys),
-      right: Math.max(...xs),
-      bottom: Math.max(...ys),
-    }
-  })
-}
-
-// A line with no text is not filtered out: Florence-2 writes none, and one
-// would be inert anyway — it holds no digits, so it is never a value, and it
-// matches no label rule, so it never names one either.
+const MIN_CONFIDENCE = 0.5
 
 /**
  * How short a line has to be, against the tallest line holding digits,
@@ -134,11 +90,11 @@ function tokensFrom(reply: string): ReadonlyArray<OcrToken> {
  */
 const VALUE_HEIGHT_RATIO = 0.5
 
-const height = (token: OcrToken): number => token.bottom - token.top
+const height = (token: OcrLine): number => token.bottom - token.top
 
-const hasDigit = (token: OcrToken): boolean => /\d/u.test(token.text)
+const hasDigit = (token: OcrLine): boolean => /\d/u.test(token.text)
 
-const textOf = (token: OcrToken): string => token.text
+const textOf = (token: OcrLine): string => token.text
 
 /** A run of non-space, which is what "a word" means to the rules below. */
 const WORD = /\S+/gu
@@ -160,14 +116,25 @@ function wordsIn(text: string): ReadonlyArray<string> {
 // holds, so anchoring the end changes nothing the model can produce.
 const VALUE_TEXT = /^(?<digits>[\d.:,]+)(?<unit>[^\d.:,].*)?$/u
 
+/** The middle of a box, across and down. */
+const centreX = (line: OcrLine): number => (line.left + line.right) / 2
+const middleY = (line: OcrLine): number => (line.top + line.bottom) / 2
+
 /**
  * Whether `label` sits to the right of `value` on the same line of the
- * display. Vertical *overlap* rather than a shared baseline, because the PM5
- * stacks two half-height labels (`ave` over `/500m`) beside one full-height
- * number.
+ * display.
+ *
+ * Vertical *overlap* rather than a shared baseline, because the PM5 stacks
+ * two half-height labels (`ave` over `/500m`) beside one full-height number.
+ *
+ * Horizontally it is centre against centre, not `label.left >= value.right`.
+ * An edge test assumes boxes that never overlap, which is true of a model
+ * that writes one box per line and false of a detector that pads every box
+ * it finds: the `m` of `4559 m` then starts a few pixels left of where the
+ * number's box ends, and the distance loses its unit.
  */
-function isRightOf(label: OcrToken, value: OcrToken): boolean {
-  return label.left >= value.right && label.top < value.bottom && label.bottom > value.top
+function isRightOf(label: OcrLine, value: OcrLine): boolean {
+  return centreX(label) > centreX(value) && label.top < value.bottom && label.bottom > value.top
 }
 
 /**
@@ -193,7 +160,7 @@ type Field = 'distance' | 'time' | 'avgSplit' | 'rate' | 'ignore'
 // Stryker disable Regex,StringLiteral: every mutant this table takes is an
 // anchor or a quantifier moved inside one of these patterns, and the words
 // they are matched against are a fixed vocabulary of about a dozen — `m`,
-// `ave`, `split`, `projted`, `flish`, `s/m`, `/500m`, `cal`, `watts`. None
+// `rn`, `ave`, `split`, `projted`, `flish`, `s/m`, `/500m`, `cal`, `watts`. None
 // of them tells an original from its mutant *given the order the rules run
 // in*, which is the part that can go wrong and is graded word by word in the
 // spec's `which field a value is` block. `IGNORE` names a bucket no reader
@@ -208,7 +175,11 @@ const FIELD_RULES: ReadonlyArray<readonly [RegExp, Field]> = [
   [/^s\/?m$|^spm$|stroke/u, 'rate'],
   [/^\/?500$|500\s*m/u, IGNORE],
   [/time|elapsed/u, 'time'],
-  [/^m$|^met/u, 'distance'],
+  // `rn`, `mn` and `nn` are what a 40-pixel lowercase m comes back as about
+  // half the time — it is two strokes at that size, and the recogniser reads
+  // two letters. The PM5 has no other unit they could be, and the same
+  // tolerance is already granted to `projted` and `flish` above.
+  [/^(?:m|rn|mn|nn)$|^met/u, 'distance'],
 ]
 // Stryker restore Regex,StringLiteral
 
@@ -237,33 +208,75 @@ interface MonitorFields {
 }
 
 /**
+ * What each field can hold, as the readers below already define it. One
+ * definition rather than two: a value is filed under a field only if that
+ * field could later read it, so the two can never drift into a state where
+ * something is filed and then rejected.
+ */
+const CAN_BE = {
+  distance: (digits: string) => metresFrom(digits) !== undefined,
+  time: (digits: string) => clockSeconds(digits) !== undefined,
+  avgSplit: (digits: string) => clockSeconds(digits) !== undefined,
+  rate: (digits: string) => rateFrom(digits).avgRate !== undefined,
+  ignore: () => true,
+} satisfies Record<Field, (digits: string) => boolean>
+
+/**
+ * The value a label describes: of the values it sits to the right of, the
+ * one whose middle it is nearest.
+ *
+ * One owner, not every value it overlaps. The PM5 draws `2:44.5 ave /500m`
+ * and `874 split m` a few pixels apart, so on a tightly boxed reading the
+ * `split` of the row below reaches up into the average — and `split`
+ * disqualifies, so the average split is filed under `ignore` and the whole
+ * photo fails for want of a duration.
+ */
+function ownerOf(label: OcrLine, values: ReadonlyArray<OcrLine>): OcrLine | undefined {
+  return values
+    .filter((value) => isRightOf(label, value))
+    .reduce<
+      OcrLine | undefined
+    >((nearest, value) => (nearest === undefined || Math.abs(middleY(label) - middleY(value)) < Math.abs(middleY(label) - middleY(nearest)) ? value : nearest), undefined)
+}
+
+/**
  * Every value on the photo, filed under what its labels call it. A field
  * already filled is left alone: the PM5 draws the workout's own totals above
  * the split rows, so the first `m` down the screen is the distance rowed.
  */
-function fieldsFrom(tokens: ReadonlyArray<OcrToken>): MonitorFields {
-  const tallest = Math.max(...tokens.filter(hasDigit).map(height))
-  const isValue = (token: OcrToken): boolean =>
-    hasDigit(token) && height(token) >= tallest * VALUE_HEIGHT_RATIO
-  const labels = tokens.filter((token) => !isValue(token))
+function fieldsFrom(lines: ReadonlyArray<OcrLine>): MonitorFields {
+  const tallest = Math.max(...lines.filter(hasDigit).map(height))
+  const isValue = (line: OcrLine): boolean =>
+    hasDigit(line) && height(line) >= tallest * VALUE_HEIGHT_RATIO
+  const values = lines.filter(isValue)
+  const labels = lines.filter((line) => !isValue(line))
 
   const fields: MonitorFields = {}
-  for (const token of tokens.filter(isValue)) {
-    const parts = VALUE_TEXT.exec(token.text)?.groups
+  for (const value of values) {
+    const parts = VALUE_TEXT.exec(value.text)?.groups
     if (parts === undefined) continue
 
-    // Cut into words rather than taken as they came. Florence-2 runs a whole
-    // row of the display together as readily as it separates it — the photo
-    // this was built from has `:00` and the stroke rate as one line — so the
-    // `m` of `4559 m 874` has to be found *inside* a line, not only as one.
-    // Each line is cut on its own rather than joined and cut once, so two
-    // that happen to sit next to each other can never fuse into a word
-    // neither of them contains.
-    const words = [parts.unit, ...labels.filter((label) => isRightOf(label, token)).map(textOf)]
+    // Cut into words rather than taken as they came. A recogniser runs a
+    // whole row of the display together as readily as it separates it — the
+    // photos this was built from have `:00` and the stroke rate as one line
+    // — so the `m` of `4559 m 874` has to be found *inside* a line, not only
+    // as one. Each line is cut on its own rather than joined and cut once,
+    // so two that happen to sit next to each other can never fuse into a
+    // word neither of them contains.
+    const words = [
+      parts.unit,
+      ...labels.filter((label) => ownerOf(label, values) === value).map(textOf),
+    ]
       .filter((text) => text !== undefined)
       .flatMap(wordsIn)
 
-    fields[fieldFor(words)] ??= parts.digits
+    // Filed only if it could be that field. Without this the `s/m` beside
+    // the stroke rate, which every model here reads as a bare `m`, hands the
+    // distance to the `:00` next to it — and holds it, because the first
+    // value to claim a field keeps it. The slot stays open for the 4559 two
+    // rows down instead.
+    const field = fieldFor(words)
+    if (CAN_BE[field](parts.digits)) fields[field] ??= parts.digits
   }
 
   return fields
@@ -402,20 +415,24 @@ function isConsistent(
 }
 
 /**
- * The model's reply as the fields the log sheet prefills, or why it cannot
- * be. Never writes anything: the reading goes into the same form the rower
- * would have typed into, and the existing save path derives split and power
- * from it — a photo scan that skipped the form would also skip its checks.
+ * What the recogniser read as the fields the log sheet prefills, or why it
+ * cannot be. Never writes anything: the reading goes into the same form the
+ * rower would have typed into, and the existing save path derives split and
+ * power from it — a photo scan that skipped the form would also skip its
+ * checks.
  */
 export function parseMonitorReading(
-  reply: string,
+  lines: ReadonlyArray<OcrLine>,
 ): Result.Result<MonitorReading, MonitorPhotoError> {
   return Result.gen(function* () {
-    const tokens = tokensFrom(reply)
-    if (tokens.every((token) => !hasDigit(token)))
+    // Read once here rather than inside each rule below, so every later
+    // judgement — which line is tallest included — is made over the same set
+    // of lines this is willing to believe.
+    const read = lines.filter((line) => line.confidence >= MIN_CONFIDENCE)
+    if (read.every((line) => !hasDigit(line)))
       return yield* Result.fail(new MonitorPhotoError({ reason: 'noText' }))
 
-    const fields = fieldsFrom(tokens)
+    const fields = fieldsFrom(read)
 
     const distanceM = metresFrom(fields.distance)
     if (distanceM === undefined)

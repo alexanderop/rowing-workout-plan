@@ -284,8 +284,6 @@ export default {
       usage: '{size} · {files} files',
       usedBy: {
         monitorPhoto: 'Reads the monitor when you fill in the log sheet from a photo.',
-        runtime:
-          'The engine the models run on. Removing it is safe — it comes back with the next scan.',
       },
       remove: 'Remove',
       removing: 'Removing…',

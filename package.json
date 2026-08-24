@@ -46,7 +46,6 @@
   },
   "dependencies": {
     "@effect/atom-vue": "catalog:frontend",
-    "@huggingface/transformers": "catalog:frontend",
     "@lucide/vue": "catalog:ui",
     "@tailwindcss/vite": "catalog:ui",
     "@vueuse/core": "catalog:frontend",
@@ -54,6 +53,7 @@
     "clsx": "catalog:ui",
     "dexie": "catalog:frontend",
     "effect": "catalog:frontend",
+    "onnxruntime-web": "catalog:frontend",
     "reka-ui": "catalog:ui",
     "tailwind-merge": "catalog:ui",
     "tailwindcss": "catalog:ui",
@@ -119,9 +119,9 @@
       "limit": "210 kB"
     },
     {
-      "name": "vision-model runtime (lazy, photo scan only)",
+      "name": "text-recogniser runtime (lazy, photo scan only)",
       "path": "dist/assets/ai-*.js",
-      "limit": "1.6 MB"
+      "limit": "60 kB"
     }
   ],
   "lint-staged": {

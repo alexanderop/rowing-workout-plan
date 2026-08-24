@@ -6,18 +6,14 @@ import AtomButton from '@/components/atoms/AtomButton.vue'
 import { useLocale } from '@/composables/useLocale'
 import type { CachedDownload } from '@/lib/modelCache'
 import { listCachedDownloads, removeCachedDownload } from '@/lib/modelCache'
-import { MODEL_ID as MONITOR_PHOTO_MODEL } from '@/lib/monitorPhotoModel'
-
-/** The npm package `@huggingface/transformers` fetches the ONNX runtime
- * from. Not a model, but it lands in the same cache and takes the same room. */
-const ONNX_RUNTIME = 'onnxruntime-web'
+import { MONITOR_PHOTO_MODELS } from '@/lib/monitorPhotoModel'
 import { useToastStore } from '@/stores/toast'
 
 /**
  * The models this device has downloaded, and the way to get the room back.
  *
- * The photo scan pulls a few hundred megabytes of weights the first time it
- * is used, without anyone choosing to install them, and nothing ever removes
+ * The photo scan pulls twenty-odd megabytes of weights the first time it is
+ * used, without anyone choosing to install them, and nothing ever removes
  * them again. In an app whose whole promise is that the data is yours and on
  * your device, the corollary is that you get told what is on your device and
  * can take it off — the same argument as the export and delete controls it
@@ -63,17 +59,16 @@ const size = (bytes: number): string => megabyteFormat.value.format(bytes / BYTE
 /**
  * What a model is *for*, where this app knows. The repository id is the
  * honest identifier and always shown; a rower deciding whether to reclaim
- * 360 MB needs the other half — which button stops working if they do.
+ * the space needs the other half — which button stops working if they do.
  *
- * A branch per model rather than an id-to-key map, because `t()` is only
- * checked against the catalogues when it is passed a literal — a map turns
- * every one of these into a key nothing can verify. One `else if` per model
- * is the price of that check, and there is one model.
+ * A literal `t()` key rather than an id-to-key map, because `t()` is only
+ * checked against the catalogues when it is passed a literal. The photo scan
+ * arrives as two repositories, a detector and a recogniser, and neither is
+ * any use without the other — so they share the one sentence rather than
+ * being explained apart.
  */
 const purposeOf = (id: string): string => {
-  if (id === MONITOR_PHOTO_MODEL) return t('settings.models.usedBy.monitorPhoto')
-
-  return id === ONNX_RUNTIME ? t('settings.models.usedBy.runtime') : ''
+  return MONITOR_PHOTO_MODELS.includes(id) ? t('settings.models.usedBy.monitorPhoto') : ''
 }
 
 async function refresh(): Promise<void> {

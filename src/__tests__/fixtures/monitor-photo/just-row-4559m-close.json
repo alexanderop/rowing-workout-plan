@@ -1,0 +1,170 @@
+[
+  {
+    "left": 75,
+    "top": 143,
+    "right": 714,
+    "bottom": 266,
+    "text": "Oconcept2.",
+    "confidence": 0.8978
+  },
+  {
+    "left": 1025,
+    "top": 155,
+    "right": 1203,
+    "bottom": 251,
+    "text": "PM5",
+    "confidence": 0.984
+  },
+  {
+    "left": 425,
+    "top": 297,
+    "right": 646,
+    "bottom": 453,
+    "text": ":00",
+    "confidence": 0.9541
+  },
+  {
+    "left": 701,
+    "top": 300,
+    "right": 897,
+    "bottom": 450,
+    "text": "20",
+    "confidence": 0.9848
+  },
+  {
+    "left": 875,
+    "top": 337,
+    "right": 960,
+    "bottom": 439,
+    "text": "新",
+    "confidence": 0.0829
+  },
+  {
+    "left": 301,
+    "top": 397,
+    "right": 767,
+    "bottom": 637,
+    "text": "2:30",
+    "confidence": 0.9624
+  },
+  {
+    "left": 740,
+    "top": 526,
+    "right": 903,
+    "bottom": 611,
+    "text": "1500m",
+    "confidence": 0.9141
+  },
+  {
+    "left": 318,
+    "top": 579,
+    "right": 638,
+    "bottom": 724,
+    "text": "4559",
+    "confidence": 0.9977
+  },
+  {
+    "left": 615,
+    "top": 661,
+    "right": 666,
+    "bottom": 705,
+    "text": "m",
+    "confidence": 0.7432
+  },
+  {
+    "left": 699,
+    "top": 741,
+    "right": 800,
+    "bottom": 798,
+    "text": "ave",
+    "confidence": 0.8832
+  },
+  {
+    "left": 327,
+    "top": 709,
+    "right": 714,
+    "bottom": 865,
+    "text": "2:44.5",
+    "confidence": 0.9806
+  },
+  {
+    "left": 697,
+    "top": 776,
+    "right": 849,
+    "bottom": 854,
+    "text": "1500m",
+    "confidence": 0.9027
+  },
+  {
+    "left": 691,
+    "top": 830,
+    "right": 804,
+    "bottom": 908,
+    "text": "splt",
+    "confidence": 0.8889
+  },
+  {
+    "left": 456,
+    "top": 813,
+    "right": 714,
+    "bottom": 964,
+    "text": "874",
+    "confidence": 0.998
+  },
+  {
+    "left": 698,
+    "top": 890,
+    "right": 760,
+    "bottom": 949,
+    "text": "m",
+    "confidence": 0.9884
+  },
+  {
+    "left": 393,
+    "top": 905,
+    "right": 710,
+    "bottom": 1056,
+    "text": "4559",
+    "confidence": 0.9987
+  },
+  {
+    "left": 694,
+    "top": 930,
+    "right": 907,
+    "bottom": 1009,
+    "text": "prolected",
+    "confidence": 0.9454
+  },
+  {
+    "left": 690,
+    "top": 968,
+    "right": 822,
+    "bottom": 1046,
+    "text": "Mntl",
+    "confidence": 0.294
+  },
+  {
+    "left": 353,
+    "top": 1129,
+    "right": 491,
+    "bottom": 1205,
+    "text": "Units",
+    "confidence": 0.9754
+  },
+  {
+    "left": 609,
+    "top": 1133,
+    "right": 801,
+    "bottom": 1228,
+    "text": "Display",
+    "confidence": 0.995
+  },
+  {
+    "left": 985,
+    "top": 1160,
+    "right": 1128,
+    "bottom": 1227,
+    "text": "Menu",
+    "confidence": 0.9954
+  }
+]

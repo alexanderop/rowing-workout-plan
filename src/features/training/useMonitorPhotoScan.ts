@@ -1,7 +1,7 @@
 import { Result } from 'effect'
 import { shallowRef, type ShallowRef } from 'vue'
 import { readMonitorPhoto } from '@/lib/monitorPhotoModel'
-import { MONITOR_PHOTO_TASK, type MonitorReading, parseMonitorReading } from './monitorPhoto'
+import { type MonitorReading, parseMonitorReading } from './monitorPhoto'
 
 /**
  * The shell over the photo scan: *when* a scan runs and what its progress
@@ -11,16 +11,16 @@ import { MONITOR_PHOTO_TASK, type MonitorReading, parseMonitorReading } from './
  *
  * Two working states rather than one busy flag, because they differ by
  * orders of magnitude: `loadingModel` covers the first-use download of the
- * model weights (a couple of hundred megabytes, minutes on a slow line),
- * `reading` the actual look at the photo (a second or two). A single spinner
- * over both reads as a hang.
+ * model weights (twenty-odd megabytes, and minutes of them on a slow line),
+ * `reading` the actual look at the photo (a fraction of a second). A single
+ * spinner over both reads as a hang.
  *
  * `progress` is the same story one level finer, and passed straight through
  * from `readMonitorPhoto` rather than decided here: `null` is an
  * indeterminate bar, which is what the two unmeasurable stretches genuinely
  * are — before the first weight file answers with its size, and while a
- * *cached* model is being deserialised, which downloads nothing and so
- * reports nothing. Filling those gaps with a guess is the one thing a
+ * *cached* model is being loaded into a session, which downloads nothing and
+ * so reports nothing. Filling those gaps with a guess is the one thing a
  * progress bar must not do, and where that call gets made matters: it is
  * arithmetic, so it belongs a layer down where a spec can walk it
  * (docs/testing-composables.md).
@@ -61,7 +61,7 @@ export function useMonitorPhotoScan(): UseMonitorPhotoScanReturn {
 
   async function scan(photo: Blob): Promise<MonitorReading | undefined> {
     rest('loadingModel')
-    const reply = await readMonitorPhoto(photo, MONITOR_PHOTO_TASK, (update) => {
+    const lines = await readMonitorPhoto(photo, (update) => {
       status.value = update.phase
       progress.value = update.ratio
       downloaded.value =
@@ -70,7 +70,7 @@ export function useMonitorPhotoScan(): UseMonitorPhotoScanReturn {
           : null
     })
     const reading =
-      reply === null ? undefined : Result.getOrElse(parseMonitorReading(reply), () => undefined)
+      lines === null ? undefined : Result.getOrElse(parseMonitorReading(lines), () => undefined)
     rest('idle')
 
     return reading

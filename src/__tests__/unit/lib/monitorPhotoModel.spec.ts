@@ -5,6 +5,7 @@ import type {
   MonitorPhotoEngine,
   MonitorPhotoProgress,
 } from '@/lib/monitorPhotoModel'
+import type { OcrLine } from '@/lib/ocr'
 
 /**
  * The platform edge, and one of the places where a unit spec is allowed a
@@ -19,20 +20,21 @@ import type {
  * failed load retried rather than replayed, every failure ending as `null`
  * instead of an escaping rejection, and the progress the two waits report.
  * Nothing here parses, because the module does not — and nothing here proves
- * the model can read a monitor, which is `monitorPhoto.spec.ts` against a
- * captured reply from a real one.
+ * the models can read a monitor, which is `monitorPhoto.spec.ts` against
+ * captured readings of a real one. The arithmetic between the two, which
+ * turns pixels into tensors and logits into words, is `ocr.spec.ts`.
  *
  * The progress arithmetic is the half worth reading twice. Several weight
  * files download at once and only their totals add up to one bar, the total
- * is not known until each file answers, and the reading half counts tokens
- * against a ceiling it usually stops short of. Every one of those is a way
- * to draw a bar that lies.
+ * is not known until each file answers, and the reading half counts batches
+ * of boxes on a photo whose box count is not known until the detector has
+ * run. Every one of those is a way to draw a bar that lies.
  */
 
 /**
- * A backends whose engine parrots what it was shown, so the test can see the
- * photo and the task token arrive intact, and whose load and generation can
- * be driven a step at a time.
+ * A backends whose engine reports what it was shown, so the test can see the
+ * photo arrive intact, and whose load and reading can be driven a step at a
+ * time.
  */
 class FakeBackends implements MonitorPhotoBackends {
   webGpu = false
@@ -40,16 +42,16 @@ class FakeBackends implements MonitorPhotoBackends {
 
   /** Files this load reports before it resolves. */
   downloads: ReadonlyArray<MonitorPhotoDownload> = []
-  /** Tokens the engine reports generating, prompt call included. */
-  steps = 0
+  /** Batches of boxes the engine reports recognising. */
+  batches = 0
 
   readonly engine: MonitorPhotoEngine = vi.fn(
-    async (photo: Blob, task: string, onStep): Promise<string> => {
-      // `generate` hands a streamer the prompt first, so the produced count
+    async (photo: Blob, onStep): Promise<ReadonlyArray<OcrLine>> => {
+      // The engine opens the phase before the first batch, so the done count
       // starts at zero and runs one behind the calls.
-      for (let call = 0; call <= this.steps; call += 1) onStep?.(call, 400)
+      for (let call = 0; call <= this.batches; call += 1) onStep?.(call, this.batches)
 
-      return `read ${await photo.text()}: ${task}`
+      return [{ text: await photo.text(), left: 0, top: 0, right: 1, bottom: 1, confidence: 1 }]
     },
   )
 
@@ -78,11 +80,16 @@ class FakeBackends implements MonitorPhotoBackends {
 async function readPhoto(
   backends: MonitorPhotoBackends,
   onProgress?: (progress: MonitorPhotoProgress) => void,
-): Promise<string | null> {
+): Promise<ReadonlyArray<OcrLine> | null> {
   const { readMonitorPhoto } = await import('@/lib/monitorPhotoModel')
 
-  return readMonitorPhoto(new Blob(['photo']), '<OCR_WITH_REGION>', onProgress, backends)
+  return readMonitorPhoto(new Blob(['photo']), onProgress, backends)
 }
+
+/** What the fake engine returns for the photo every test here scans. */
+const readOf = (photo: string) => [
+  { text: photo, left: 0, top: 0, right: 1, bottom: 1, confidence: 1 },
+]
 
 /** Every update one scan reported, in order. */
 async function progressOf(backends: FakeBackends): Promise<ReadonlyArray<MonitorPhotoProgress>> {
@@ -106,7 +113,7 @@ describe('readMonitorPhoto', () => {
   it('reads the photo on wasm where the browser has no WebGPU', async () => {
     const backends = new FakeBackends()
 
-    await expect(readPhoto(backends)).resolves.toBe('read photo: <OCR_WITH_REGION>')
+    await expect(readPhoto(backends)).resolves.toEqual(readOf('photo'))
     expect(backends.devices()).toEqual(['wasm'])
   })
 
@@ -114,7 +121,7 @@ describe('readMonitorPhoto', () => {
     const backends = new FakeBackends()
     backends.webGpu = true
 
-    await expect(readPhoto(backends)).resolves.toBe('read photo: <OCR_WITH_REGION>')
+    await expect(readPhoto(backends)).resolves.toEqual(readOf('photo'))
     expect(backends.devices()).toEqual(['webgpu'])
   })
 
@@ -123,7 +130,7 @@ describe('readMonitorPhoto', () => {
     backends.webGpu = true
     backends.failing.add('webgpu')
 
-    await expect(readPhoto(backends)).resolves.toBe('read photo: <OCR_WITH_REGION>')
+    await expect(readPhoto(backends)).resolves.toEqual(readOf('photo'))
     expect(backends.devices()).toEqual(['webgpu', 'wasm'])
   })
 
@@ -137,7 +144,9 @@ describe('readMonitorPhoto', () => {
   it('returns null when the engine itself fails on a photo', async () => {
     const backends = new FakeBackends()
     backends.load.mockResolvedValueOnce(
-      vi.fn(async (): Promise<string> => Promise.reject(new Error('out of memory'))),
+      vi.fn(
+        async (): Promise<ReadonlyArray<OcrLine>> => Promise.reject(new Error('out of memory')),
+      ),
     )
 
     await expect(readPhoto(backends)).resolves.toBeNull()
@@ -159,7 +168,7 @@ describe('readMonitorPhoto', () => {
     await expect(readPhoto(backends)).resolves.toBeNull()
 
     backends.failing.clear()
-    await expect(readPhoto(backends)).resolves.toBe('read photo: <OCR_WITH_REGION>')
+    await expect(readPhoto(backends)).resolves.toEqual(readOf('photo'))
     expect(backends.devices()).toEqual(['wasm', 'wasm'])
   })
 })
@@ -168,8 +177,8 @@ describe('the download half of the bar', () => {
   it('adds the files up into one bar rather than reporting each', async () => {
     const backends = new FakeBackends()
     backends.downloads = [
-      { file: 'vision_encoder.onnx', loaded: 30, total: 90 },
-      { file: 'decoder.onnx', loaded: 10, total: 60 },
+      { file: 'inference.onnx', loaded: 30, total: 90 },
+      { file: 'inference.yml', loaded: 10, total: 60 },
     ]
 
     // 30 of 90, then 40 of 150 — the second file joining is the total
@@ -183,8 +192,8 @@ describe('the download half of the bar', () => {
   it('counts a file the runtime reports twice once', async () => {
     const backends = new FakeBackends()
     backends.downloads = [
-      { file: 'vision_encoder.onnx', loaded: 30, total: 90 },
-      { file: 'vision_encoder.onnx', loaded: 90, total: 90 },
+      { file: 'inference.onnx', loaded: 30, total: 90 },
+      { file: 'inference.onnx', loaded: 90, total: 90 },
     ]
 
     // Not 120 of 180: the second report is the same file further along.
@@ -198,7 +207,7 @@ describe('the download half of the bar', () => {
 
   it('goes indeterminate for a file that has not said how big it is', async () => {
     const backends = new FakeBackends()
-    backends.downloads = [{ file: 'config.json', loaded: 0, total: 0 }]
+    backends.downloads = [{ file: 'inference.yml', loaded: 0, total: 0 }]
 
     // A null ratio rather than a zero: the bar is indeterminate here, and
     // "0%" is a claim about a total nobody knows yet.
@@ -216,7 +225,7 @@ describe('the download half of the bar', () => {
   it('reports nothing once the load has failed', async () => {
     const backends = new FakeBackends()
     backends.failing.add('wasm')
-    backends.downloads = [{ file: 'vision_encoder.onnx', loaded: 30, total: 90 }]
+    backends.downloads = [{ file: 'inference.onnx', loaded: 30, total: 90 }]
 
     // The files it managed before giving up are not a bar anyone should see
     // filling: `load` throws before reporting, and the scan ends as a
@@ -228,34 +237,38 @@ describe('the download half of the bar', () => {
 describe('the reading half of the bar', () => {
   it('opens the phase at zero, which is the only ready signal there is', async () => {
     const backends = new FakeBackends()
-    backends.steps = 0
+    // A photo the detector found no text on: nothing to recognise, and no
+    // batch count to divide by.
+    backends.batches = 0
 
     expect(reading(await progressOf(backends))).toEqual([
       { phase: 'reading', ratio: 0 },
-      // The engine's own first call is the prompt, and lands on zero too.
-      { phase: 'reading', ratio: 0 },
+      // A bar over no work at all is finished, not stuck — and not `NaN`,
+      // which is what dividing the zero batches done by the zero there are
+      // would paint.
+      { phase: 'reading', ratio: 1 },
     ])
   })
 
-  it('counts tokens against the budget they are capped at', async () => {
+  it('counts the batches of boxes this photo actually needs', async () => {
     const backends = new FakeBackends()
-    backends.steps = 2
+    backends.batches = 2
 
     expect(reading(await progressOf(backends)).map((update) => update.ratio)).toEqual([
       0,
       0,
-      1 / 400,
-      2 / 400,
+      1 / 2,
+      1,
     ])
   })
 
   it('never paints past the end of the bar', async () => {
     const backends = new FakeBackends()
     backends.load.mockResolvedValueOnce(
-      vi.fn(async (_photo: Blob, _task: string, onStep): Promise<string> => {
-        onStep?.(500, 400)
+      vi.fn(async (_photo: Blob, onStep): Promise<ReadonlyArray<OcrLine>> => {
+        onStep?.(5, 4)
 
-        return 'over budget'
+        return []
       }),
     )
 
@@ -264,8 +277,8 @@ describe('the reading half of the bar', () => {
 
   it('follows the download rather than interleaving with it', async () => {
     const backends = new FakeBackends()
-    backends.downloads = [{ file: 'vision_encoder.onnx', loaded: 90, total: 90 }]
-    backends.steps = 1
+    backends.downloads = [{ file: 'inference.onnx', loaded: 90, total: 90 }]
+    backends.batches = 1
 
     // One phase change, one way: a bar that went back to downloading would
     // have to run backwards to do it.

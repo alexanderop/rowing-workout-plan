@@ -265,8 +265,6 @@ const de: MessageSchema = {
       usage: '{size} · {files} Dateien',
       usedBy: {
         monitorPhoto: 'Liest den Monitor, wenn du das Log-Formular aus einem Foto ausfüllst.',
-        runtime:
-          'Die Engine, auf der die Modelle laufen. Das Entfernen ist unbedenklich — sie kommt mit dem nächsten Scan zurück.',
       },
       remove: 'Entfernen',
       removing: 'Wird entfernt …',

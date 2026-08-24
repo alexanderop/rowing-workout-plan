@@ -22,16 +22,8 @@ const file = (id: string, name: string, bytes: number): CachedFile => ({
   bytes,
 })
 
-/** The other shape in the same cache: the ONNX runtime, served off a CDN by
- * version, which `env.backends.onnx.wasm.wasmPaths` points at. */
-const runtimeFile = (name: string, bytes: number): CachedFile => ({
-  url: `https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0-dev.20260416-b7804b056c/dist/${name}`,
-  bytes,
-})
-
-const FLORENCE = 'onnx-community/Florence-2-base-ft'
-const SMOL = 'HuggingFaceTB/SmolVLM-500M-Instruct'
-const RUNTIME = 'onnxruntime-web'
+const DETECTOR = 'PaddlePaddle/PP-OCRv5_mobile_det_onnx'
+const RECOGNISER = 'PaddlePaddle/PP-OCRv5_mobile_rec_onnx'
 
 /** A store holding exactly these files, remembering what it was asked to
  * drop. */
@@ -53,29 +45,35 @@ class FakeStore implements ModelCacheStore {
 describe('listCachedDownloads', () => {
   it('folds a repository’s files into one row', async () => {
     const store = new FakeStore([
-      file(FLORENCE, 'onnx/vision_encoder_quantized.onnx', 89_000_000),
-      file(FLORENCE, 'onnx/decoder_model_merged_q4.onnx', 61_000_000),
-      file(FLORENCE, 'tokenizer.json', 2_300_000),
+      file(DETECTOR, 'inference.onnx', 89_000_000),
+      file(DETECTOR, 'inference.yml', 61_000_000),
+      file(DETECTOR, 'README.md', 2_300_000),
     ])
 
     // Three files, one thing a user recognises — and the total is what they
     // came to the screen for.
     await expect(listCachedDownloads(store)).resolves.toEqual([
-      { id: FLORENCE, files: 3, bytes: 152_300_000 },
+      { id: DETECTOR, files: 3, bytes: 152_300_000 },
     ])
   })
 
   it('offers the biggest first, which is the one worth removing', async () => {
     const store = new FakeStore([
-      file(SMOL, 'onnx/model_q8.onnx', 10),
-      file(FLORENCE, 'onnx/vision_encoder_quantized.onnx', 90),
+      file(RECOGNISER, 'inference.onnx', 10),
+      file(DETECTOR, 'inference.onnx', 90),
     ])
 
-    expect((await listCachedDownloads(store)).map((model) => model.id)).toEqual([FLORENCE, SMOL])
+    expect((await listCachedDownloads(store)).map((model) => model.id)).toEqual([
+      DETECTOR,
+      RECOGNISER,
+    ])
   })
 
   it('keeps two repositories apart', async () => {
-    const store = new FakeStore([file(FLORENCE, 'config.json', 5), file(SMOL, 'config.json', 5)])
+    const store = new FakeStore([
+      file(DETECTOR, 'inference.onnx', 5),
+      file(RECOGNISER, 'inference.onnx', 5),
+    ])
 
     expect(await listCachedDownloads(store)).toHaveLength(2)
   })
@@ -83,47 +81,38 @@ describe('listCachedDownloads', () => {
   it('reads the repository out of the URL, not the revision or the path', async () => {
     const store = new FakeStore([
       {
-        url: `https://huggingface.co/${FLORENCE}/resolve/refs%2Fpr%2F1/onnx/deep/file.onnx`,
+        url: `https://huggingface.co/${DETECTOR}/resolve/refs%2Fpr%2F1/onnx/deep/file.onnx`,
         bytes: 7,
       },
     ])
 
-    expect((await listCachedDownloads(store))[0]?.id).toBe(FLORENCE)
+    expect((await listCachedDownloads(store))[0]?.id).toBe(DETECTOR)
   })
 
-  it('lists the runtime the models execute on, not only the weights', async () => {
-    // It lands in the same cache, it is megabytes nobody chose to store, and
-    // a screen that hides it reports a smaller device than the real one.
+  it('leaves out the runtime, which is not a download anyone can reclaim', async () => {
+    // It ships with the app and is served from its own origin, so it is in
+    // the service worker's asset cache rather than this one. Listing it
+    // would offer a rower a row whose Remove button breaks the app.
     const store = new FakeStore([
-      file(FLORENCE, 'config.json', 5),
-      runtimeFile('ort-wasm-simd-threaded.asyncify.wasm', 20_000_000),
-      runtimeFile('ort-wasm-simd-threaded.asyncify.mjs', 500_000),
+      file(DETECTOR, 'inference.onnx', 5),
+      { url: 'https://rowing.example/assets/ort-wasm-simd-threaded.jsep.wasm', bytes: 20_000_000 },
     ])
 
     await expect(listCachedDownloads(store)).resolves.toEqual([
-      { id: RUNTIME, files: 2, bytes: 20_500_000 },
-      { id: FLORENCE, files: 1, bytes: 5 },
+      { id: DETECTOR, files: 1, bytes: 5 },
     ])
   })
 
-  it('keeps a scoped package whole', async () => {
-    const store = new FakeStore([
-      { url: 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/dist/x.mjs', bytes: 9 },
-    ])
-
-    expect((await listCachedDownloads(store))[0]?.id).toBe('@huggingface/transformers')
-  })
-
-  it('leaves out an entry that reads as neither', async () => {
+  it('leaves out an entry that reads as no repository', async () => {
     // Nothing writes one today. Filing it under an invented name would put a
     // row in a list of things to delete that nobody can account for.
     const store = new FakeStore([
       { url: 'https://example.com/not-a-model.bin', bytes: 10 },
-      file(FLORENCE, 'config.json', 5),
+      file(DETECTOR, 'inference.onnx', 5),
     ])
 
     await expect(listCachedDownloads(store)).resolves.toEqual([
-      { id: FLORENCE, files: 1, bytes: 5 },
+      { id: DETECTOR, files: 1, bytes: 5 },
     ])
   })
 
@@ -144,53 +133,59 @@ describe('listCachedDownloads', () => {
 describe('removeCachedDownload', () => {
   it('names every file of that model and nothing else', async () => {
     const store = new FakeStore([
-      file(FLORENCE, 'onnx/vision_encoder_quantized.onnx', 89),
-      file(FLORENCE, 'config.json', 5),
-      file(SMOL, 'onnx/model_q8.onnx', 10),
+      file(DETECTOR, 'inference.onnx', 89),
+      file(DETECTOR, 'inference.yml', 5),
+      file(RECOGNISER, 'inference.onnx', 10),
     ])
 
-    await expect(removeCachedDownload(FLORENCE, store)).resolves.toBe(true)
+    await expect(removeCachedDownload(DETECTOR, store)).resolves.toBe(true)
     expect(store.removed).toEqual([
-      `https://huggingface.co/${FLORENCE}/resolve/main/onnx/vision_encoder_quantized.onnx`,
-      `https://huggingface.co/${FLORENCE}/resolve/main/config.json`,
+      `https://huggingface.co/${DETECTOR}/resolve/main/inference.onnx`,
+      `https://huggingface.co/${DETECTOR}/resolve/main/inference.yml`,
     ])
   })
 
   it('leaves the other model on the device', async () => {
-    const store = new FakeStore([file(FLORENCE, 'config.json', 5), file(SMOL, 'config.json', 10)])
+    const store = new FakeStore([
+      file(DETECTOR, 'inference.onnx', 5),
+      file(RECOGNISER, 'inference.onnx', 10),
+    ])
 
-    await removeCachedDownload(FLORENCE, store)
+    await removeCachedDownload(DETECTOR, store)
 
-    await expect(listCachedDownloads(store)).resolves.toEqual([{ id: SMOL, files: 1, bytes: 10 }])
+    await expect(listCachedDownloads(store)).resolves.toEqual([
+      { id: RECOGNISER, files: 1, bytes: 10 },
+    ])
   })
 
   it('says so when there was nothing of that model to remove', async () => {
-    const store = new FakeStore([file(SMOL, 'config.json', 10)])
+    const store = new FakeStore([file(RECOGNISER, 'inference.onnx', 10)])
 
-    await expect(removeCachedDownload(FLORENCE, store)).resolves.toBe(false)
+    await expect(removeCachedDownload(DETECTOR, store)).resolves.toBe(false)
     expect(store.remove).not.toHaveBeenCalled()
   })
 
   it('says so when the cache refuses the delete', async () => {
-    const store = new FakeStore([file(FLORENCE, 'config.json', 5)])
+    const store = new FakeStore([file(DETECTOR, 'inference.onnx', 5)])
     store.remove.mockResolvedValueOnce(false)
 
-    await expect(removeCachedDownload(FLORENCE, store)).resolves.toBe(false)
+    await expect(removeCachedDownload(DETECTOR, store)).resolves.toBe(false)
   })
 
-  it('leaves the runtime behind when only a model is removed', async () => {
-    // The runtime is shared: another model would use the same one, and
-    // taking it out from under the row the user did not press is not what
-    // "remove this model" says.
+  it('leaves the other model behind when one of the pair is removed', async () => {
+    // The photo scan arrives as two repositories. Taking out the one the
+    // user did not press is not what "remove this model" says — even though
+    // neither is any use without the other, which is the settings screen's
+    // sentence to write, not this module's.
     const store = new FakeStore([
-      file(FLORENCE, 'config.json', 5),
-      runtimeFile('ort-wasm-simd-threaded.asyncify.wasm', 20),
+      file(DETECTOR, 'inference.onnx', 5),
+      file(RECOGNISER, 'inference.onnx', 20),
     ])
 
-    await removeCachedDownload(FLORENCE, store)
+    await removeCachedDownload(DETECTOR, store)
 
     await expect(listCachedDownloads(store)).resolves.toEqual([
-      { id: RUNTIME, files: 1, bytes: 20 },
+      { id: RECOGNISER, files: 1, bytes: 20 },
     ])
   })
 
@@ -198,6 +193,6 @@ describe('removeCachedDownload', () => {
     const store = new FakeStore()
     store.files.mockRejectedValueOnce(new Error('no storage'))
 
-    await expect(removeCachedDownload(FLORENCE, store)).resolves.toBe(false)
+    await expect(removeCachedDownload(DETECTOR, store)).resolves.toBe(false)
   })
 })

@@ -25,14 +25,15 @@
  */
 
 /**
- * `env.cacheKey` in `@huggingface/transformers` — the Cache API bucket every
- * weight file is written to in a browser.
+ * `CACHE_NAME` in `monitorPhotoModel.ts` — the Cache API bucket every weight
+ * file is written to.
  *
- * Copied rather than imported, for the reason above. If upstream renames it,
- * this screen lists nothing: it cannot show the wrong size or delete the
- * wrong file, it can only go blank, which is the failure worth having.
+ * Copied rather than imported, for the reason above. If one copy is renamed
+ * without the other, this screen lists nothing: it cannot show the wrong size
+ * or delete the wrong file, it can only go blank, which is the failure worth
+ * having.
  */
-const MODEL_CACHE_NAME = 'transformers-cache'
+const MODEL_CACHE_NAME = 'monitor-photo-models'
 
 /** One cached file: the URL it was fetched from, and how much room it takes. */
 export interface CachedFile {
@@ -42,15 +43,12 @@ export interface CachedFile {
 
 /**
  * One thing the on-device AI has downloaded, as the settings screen lists
- * it. Usually a model; sometimes the runtime the models execute on, which
- * the library fetches into the same cache and which is just as much a few
- * megabytes nobody chose to store.
+ * it: a model repository and everything of it that is stored.
  */
 export interface CachedDownload {
-  /** Where it came from — a repository, `onnx-community/Florence-2-base-ft`,
-   * or an npm package, `onnxruntime-web`. */
+  /** The repository it came from, `PaddlePaddle/PP-OCRv5_mobile_rec_onnx`. */
   readonly id: string
-  /** How many of its files are cached; neither a model nor a runtime is one. */
+  /** How many of its files are cached; a model is rarely one. */
   readonly files: number
   readonly bytes: number
 }
@@ -69,35 +67,30 @@ export interface ModelCacheStore {
 
 /**
  * The repository a Hugging Face file URL belongs to: the two path segments
- * before `/resolve/`, which is the shape `env.remotePathTemplate` builds.
+ * before `/resolve/`, which is the shape every download URL in
+ * `monitorPhotoModel.ts` is built to.
  */
 const MODEL_FILE_URL = /^https?:\/\/[^/]+\/(?<id>[^/]+\/[^/]+)\/resolve\//u
 
 /**
- * The npm package a CDN file URL serves, scope included:
- * `https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/ort.wasm` →
- * `onnxruntime-web`.
- *
- * Not a model, and not a mistake either — `env.backends.onnx.wasm.wasmPaths`
- * points at a CDN, so the ONNX runtime lands in the same cache as the
- * weights. Listing only the weights would show a smaller number than the
- * device is actually carrying, and removing only the weights would leave
- * megabytes behind that nothing else ever cleans up.
+ * The ONNX runtime is deliberately *not* listed here. It is bundled with the
+ * app and served from this origin, so it lands in the service worker's asset
+ * cache like every other file the app ships — not in this bucket, and not as
+ * something a rower could be asked to reclaim without breaking the app
+ * itself. Only what was downloaded on their behalf appears in this list.
  */
-const PACKAGE_FILE_URL = /^https?:\/\/[^/]+\/npm\/(?<id>@?[^@/]+(?:\/[^@/]+)?)@/u
-
 function downloadIdFrom(url: string): string | undefined {
-  return (MODEL_FILE_URL.exec(url) ?? PACKAGE_FILE_URL.exec(url))?.groups?.id
+  return MODEL_FILE_URL.exec(url)?.groups?.id
 }
 
 /**
  * The cached files as downloads, biggest first — the order they would be
  * removed in.
  *
- * A file whose URL reads as neither is left out rather than filed under an
- * invented name. Nothing writes such an entry today; if something starts to,
- * an unexplained row in a list of things to delete is worse than a missing
- * one.
+ * A file whose URL does not read as a repository's is left out rather than
+ * filed under an invented name. Nothing writes such an entry today; if
+ * something starts to, an unexplained row in a list of things to delete is
+ * worse than a missing one.
  */
 function downloadsFrom(files: ReadonlyArray<CachedFile>): ReadonlyArray<CachedDownload> {
   const totals = new Map<string, { files: number; bytes: number }>()

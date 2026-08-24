@@ -96,19 +96,18 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        // Everything behind the lazy `import('@huggingface/transformers')` in
+        // Everything behind the lazy `import('onnxruntime-web/webgpu')` in
         // src/lib/monitorPhotoModel.ts lands in one chunk named `ai`, so the
         // size-limit entry in package.json and the workbox ignore above can
         // both address it by name instead of chasing hashed module names.
-        manualChunks: (id) =>
-          id.includes('@huggingface/transformers') || id.includes('onnxruntime') ? 'ai' : undefined,
+        manualChunks: (id) => (id.includes('onnxruntime') ? 'ai' : undefined),
       },
     },
   },
   // Prebundling would pull the whole model runtime into the dev graph on
   // startup; it is dynamically imported and esbuild mangles its wasm loading.
   optimizeDeps: {
-    exclude: ['@huggingface/transformers'],
+    exclude: ['onnxruntime-web'],
   },
   resolve: {
     alias: {

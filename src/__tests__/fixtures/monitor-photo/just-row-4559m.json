@@ -1,0 +1,194 @@
+[
+  {
+    "left": 90,
+    "top": 502,
+    "right": 695,
+    "bottom": 623,
+    "text": "Oconcept2.",
+    "confidence": 0.9069
+  },
+  {
+    "left": 982,
+    "top": 517,
+    "right": 1148,
+    "bottom": 604,
+    "text": "PM5",
+    "confidence": 0.9886
+  },
+  {
+    "left": 422,
+    "top": 647,
+    "right": 639,
+    "bottom": 796,
+    "text": ":00",
+    "confidence": 0.9458
+  },
+  {
+    "left": 676,
+    "top": 652,
+    "right": 866,
+    "bottom": 795,
+    "text": "20",
+    "confidence": 0.9851
+  },
+  {
+    "left": 565,
+    "top": 679,
+    "right": 717,
+    "bottom": 768,
+    "text": "0",
+    "confidence": 0.4022
+  },
+  {
+    "left": 837,
+    "top": 684,
+    "right": 923,
+    "bottom": 783,
+    "text": "初",
+    "confidence": 0.0524
+  },
+  {
+    "left": 308,
+    "top": 744,
+    "right": 736,
+    "bottom": 966,
+    "text": "2:30",
+    "confidence": 0.9627
+  },
+  {
+    "left": 716,
+    "top": 862,
+    "right": 868,
+    "bottom": 944,
+    "text": "500m",
+    "confidence": 0.9551
+  },
+  {
+    "left": 979,
+    "top": 888,
+    "right": 1141,
+    "bottom": 1131,
+    "text": ":",
+    "confidence": 0.4449
+  },
+  {
+    "left": 320,
+    "top": 906,
+    "right": 621,
+    "bottom": 1055,
+    "text": "4559",
+    "confidence": 0.9978
+  },
+  {
+    "left": 603,
+    "top": 990,
+    "right": 644,
+    "bottom": 1028,
+    "text": "rn",
+    "confidence": 0.8364
+  },
+  {
+    "left": 331,
+    "top": 1031,
+    "right": 691,
+    "bottom": 1184,
+    "text": "2:44.5",
+    "confidence": 0.9904
+  },
+  {
+    "left": 678,
+    "top": 1066,
+    "right": 771,
+    "bottom": 1118,
+    "text": "ave",
+    "confidence": 0.8587
+  },
+  {
+    "left": 1008,
+    "top": 1062,
+    "right": 1105,
+    "bottom": 1178,
+    "text": "-",
+    "confidence": 0.9642
+  },
+  {
+    "left": 673,
+    "top": 1096,
+    "right": 819,
+    "bottom": 1173,
+    "text": "1500m",
+    "confidence": 0.9328
+  },
+  {
+    "left": 673,
+    "top": 1149,
+    "right": 774,
+    "bottom": 1220,
+    "text": "split",
+    "confidence": 0.7522
+  },
+  {
+    "left": 458,
+    "top": 1135,
+    "right": 682,
+    "bottom": 1260,
+    "text": "874",
+    "confidence": 0.9984
+  },
+  {
+    "left": 677,
+    "top": 1205,
+    "right": 734,
+    "bottom": 1255,
+    "text": "m",
+    "confidence": 0.9911
+  },
+  {
+    "left": 392,
+    "top": 1210,
+    "right": 690,
+    "bottom": 1363,
+    "text": "4559",
+    "confidence": 0.9984
+  },
+  {
+    "left": 674,
+    "top": 1243,
+    "right": 868,
+    "bottom": 1310,
+    "text": "pralected",
+    "confidence": 0.8473
+  },
+  {
+    "left": 678,
+    "top": 1287,
+    "right": 791,
+    "bottom": 1345,
+    "text": "nnish",
+    "confidence": 0.7193
+  },
+  {
+    "left": 355,
+    "top": 1428,
+    "right": 483,
+    "bottom": 1499,
+    "text": "Units",
+    "confidence": 0.9952
+  },
+  {
+    "left": 592,
+    "top": 1429,
+    "right": 771,
+    "bottom": 1521,
+    "text": "Display",
+    "confidence": 0.9882
+  },
+  {
+    "left": 942,
+    "top": 1453,
+    "right": 1081,
+    "bottom": 1522,
+    "text": "Menu",
+    "confidence": 0.996
+  }
+]

@@ -1,22 +1,20 @@
 import { describe, expect, it } from '@effect/vitest'
 import { Result } from 'effect'
-import {
-  MONITOR_PHOTO_TASK,
-  MonitorPhotoError,
-  parseMonitorReading,
-} from '@/features/training/monitorPhoto'
-import justRow4559m from '../../fixtures/monitor-photo/just-row-4559m.txt?raw'
+import { MonitorPhotoError, parseMonitorReading } from '@/features/training/monitorPhoto'
+import type { OcrLine } from '@/lib/ocr'
+import justRow4559mClose from '../../fixtures/monitor-photo/just-row-4559m-close.json'
+import justRow4559m from '../../fixtures/monitor-photo/just-row-4559m.json'
 
 /**
- * The deterministic half of the photo scan — which, since the model does
+ * The deterministic half of the photo scan — which, since the models do
  * nothing but transcribe, is now the whole feature. This file is where its
  * correctness lives, and it is in the mutation scope.
  *
  * Four contracts are pinned:
  *
- * - **The photo it was asked for.** A real reply about a real PM5, kept as
- *   evidence in `fixtures/monitor-photo/`, has to come out as the row that
- *   monitor was showing. Everything below only explains why.
+ * - **The photos it was asked for.** Two real readings of a real PM5, kept
+ *   as evidence in `fixtures/monitor-photo/`, have to come out as the row
+ *   that monitor was showing. Everything below only explains why.
  * - **Which line is a value.** A PM5 draws its numbers about twice the
  *   height of the unit labels beside them; without that the `/500m` under
  *   the pace reads as a 500 metre row.
@@ -29,21 +27,24 @@ import justRow4559m from '../../fixtures/monitor-photo/just-row-4559m.txt?raw'
  *   it: the time wins, the rower is told to look.
  */
 
-const succeeded = (reply: string) => Result.getOrThrow(parseMonitorReading(reply))
-const failed = (reply: string): MonitorPhotoError =>
-  Result.getOrThrow(Result.flip(parseMonitorReading(reply)))
+const succeeded = (lines: ReadonlyArray<OcrLine>) => Result.getOrThrow(parseMonitorReading(lines))
+const failed = (lines: ReadonlyArray<OcrLine>): MonitorPhotoError =>
+  Result.getOrThrow(Result.flip(parseMonitorReading(lines)))
 
 /**
- * One transcribed line at a box, written the way Florence-2 writes one: the
- * text, then the four corners of its box as `<loc_n>` pairs, clockwise from
- * top left, in thousandths of the image.
+ * One line the recogniser read, at a box. Sure of itself unless a test says
+ * otherwise, since how sure it was is only one rule's business and spelling
+ * it out on every line here would bury the layout the rest are about.
  */
-function line(text: string, left: number, top: number, right: number, bottom: number): string {
-  const corner = (x: number, y: number): string => `<loc_${x}><loc_${y}>`
-
-  return (
-    text + corner(left, top) + corner(right, top) + corner(right, bottom) + corner(left, bottom)
-  )
+function line(
+  text: string,
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+  confidence = 1,
+): OcrLine {
+  return { text, left, top, right, bottom, confidence }
 }
 
 /** Values are drawn tall, unit labels short — the whole basis of telling one
@@ -57,19 +58,19 @@ const ROW_PITCH = 90
  * whatever the monitor prints beside it on the right. An empty label is a
  * value with nothing next to it.
  */
-function screen(...rows: ReadonlyArray<readonly [value: string, label: string]>): string {
-  return rows
-    .map(([value, label], row) => {
-      const top = 50 + row * ROW_PITCH
+function screen(
+  ...rows: ReadonlyArray<readonly [value: string, label: string]>
+): ReadonlyArray<OcrLine> {
+  return rows.flatMap(([value, label], row) => {
+    const top = 50 + row * ROW_PITCH
 
-      return (
-        line(value, 100, top, 400, top + VALUE_HEIGHT) +
-        // Flush against the value's right edge: a label starting exactly
-        // there is beside it, and the tests below all depend on that.
-        (label === '' ? '' : line(label, 400, top, 700, top + LABEL_HEIGHT))
-      )
-    })
-    .join('')
+    return [
+      line(value, 100, top, 400, top + VALUE_HEIGHT),
+      // Flush against the value's right edge: a label starting exactly
+      // there is beside it, and the tests below all depend on that.
+      ...(label === '' ? [] : [line(label, 400, top, 700, top + LABEL_HEIGHT)]),
+    ]
+  })
 }
 
 /** The rows a PM5 prints for the fields this feature reads, in screen order. */
@@ -78,7 +79,7 @@ function photo(fields: {
   time?: string
   avgSplit?: string
   rate?: string
-}): string {
+}): ReadonlyArray<OcrLine> {
   const rows: Array<readonly [string, string]> = []
   if (fields.time !== undefined) rows.push([fields.time, 'time'])
   if (fields.distance !== undefined) rows.push([fields.distance, 'm'])
@@ -92,8 +93,8 @@ const read = (fields: Parameters<typeof photo>[0]) => succeeded(photo(fields))
 const misread = (fields: Parameters<typeof photo>[0]): MonitorPhotoError => failed(photo(fields))
 
 describe('parseMonitorReading', () => {
-  describe('the photo the feature was asked for', () => {
-    it('reads the real reply about a real PM5', () => {
+  describe('the photos the feature was asked for', () => {
+    it('reads the real reading of a real PM5', () => {
       // A Just Row screen mid-piece: 4559 m at a 2:44.5 average, no total
       // time anywhere on it. 4559 × 329 ms is 1_499_911 ms, the whole second
       // the time field holds being 25:00. See the fixture's README for what
@@ -105,11 +106,24 @@ describe('parseMonitorReading', () => {
       })
     })
 
-    it('leaves the rate off that photo rather than guessing at it', () => {
-      // The PM5 prints `20 s/m` as a superscript the model does not resolve,
-      // and runs the `:00` beside it into the same line. The form's rate
-      // field is optional; a guessed rate would not be.
+    it('reads the same screen photographed closer', () => {
+      // The photo the previous model could not read: it made the stacked
+      // `s/m` beside the stroke rate into a plain `m`, which gave the
+      // distance field to the `:00` next to it and ended the reading there.
+      expect(succeeded(justRow4559mClose)).toEqual({
+        distanceM: 4559,
+        durationMs: 1_500_000,
+        consistent: true,
+      })
+    })
+
+    it('leaves the rate off those photos rather than guessing at it', () => {
+      // The PM5 prints `20 s/m` as a superscript neither model resolves —
+      // one reads it as a bare `m`, the other as a Chinese character — so
+      // the `20` is a value with nothing beside it to name it. The form's
+      // rate field is optional; a guessed rate would not be.
       expect(succeeded(justRow4559m)).not.toHaveProperty('avgRate')
+      expect(succeeded(justRow4559mClose)).not.toHaveProperty('avgRate')
     })
   })
 
@@ -117,7 +131,7 @@ describe('parseMonitorReading', () => {
     it('does not read the /500m under a pace as a 500 metre row', () => {
       // The label is a third the height of the number it belongs to. Treat
       // it as a value and its trailing `m` makes it a 500 m piece.
-      const paceOnly = line('2:30', 100, 50, 400, 110) + line('500m', 420, 80, 520, 100)
+      const paceOnly = [line('2:30', 100, 50, 400, 110), line('500m', 420, 80, 520, 100)]
 
       expect(failed(paceOnly).reason).toBe('badNumbers')
     })
@@ -131,49 +145,40 @@ describe('parseMonitorReading', () => {
       // secondary rows a little over half the primary one, so a boundary
       // that excluded them would drop the distance off a screen whose pace
       // is the big number.
-      const halfHeight =
-        line('2:30', 100, 50, 400, 170) + // the tallest line: 120
-        line('4559', 100, 200, 400, 260) + // exactly 60
-        line('m', 400, 200, 500, 220) +
-        line('2:44.5', 100, 300, 400, 360) +
-        line('ave', 400, 300, 500, 320)
-
+      const halfHeight = [
+        line('2:30', 100, 50, 400, 170), // the tallest line: 120
+        line('4559', 100, 200, 400, 260), // exactly 60
+        line('m', 400, 200, 500, 220),
+        line('2:44.5', 100, 300, 400, 360),
+        line('ave', 400, 300, 500, 320),
+      ]
       expect(succeeded(halfHeight).distanceM).toBe(4559)
     })
 
     it('measures against the tallest number, not the tallest word', () => {
       // The moulded `concept` badge above the screen is bigger than anything
       // on it. Let it set the scale and every real value falls under half.
-      const badged =
-        line('CONCEPT', 100, 0, 900, 200) +
-        line('4559', 100, 250, 400, 310) +
-        line('m', 400, 250, 500, 270) +
-        line('2:44.5', 100, 350, 400, 410) +
-        line('ave', 400, 350, 500, 370)
-
+      const badged = [
+        line('CONCEPT', 100, 0, 900, 200),
+        line('4559', 100, 250, 400, 310),
+        line('m', 400, 250, 500, 270),
+        line('2:44.5', 100, 350, 400, 410),
+        line('ave', 400, 350, 500, 370),
+      ]
       expect(succeeded(badged).distanceM).toBe(4559)
     })
 
     it('never lets one value label another', () => {
       // A `/500m` the model read at full height is a value, not a label —
       // and a value beside the metre count must not rename it.
-      const twoValues =
-        line('4559', 100, 50, 400, 110) +
-        line('500m', 400, 50, 700, 110) +
-        line('m', 700, 50, 800, 70) +
-        line('2:44.5', 100, 150, 400, 210) +
-        line('ave', 400, 150, 500, 170)
-
+      const twoValues = [
+        line('4559', 100, 50, 400, 110),
+        line('500m', 400, 50, 700, 110),
+        line('m', 700, 50, 800, 70),
+        line('2:44.5', 100, 150, 400, 210),
+        line('ave', 400, 150, 500, 170),
+      ]
       expect(succeeded(twoValues).distanceM).toBe(4559)
-    })
-
-    it('reads a value that opens the reply, tokenizer furniture and all', () => {
-      // Florence-2 wraps every reply in `</s><s>` and a space. Leave those
-      // on and the first line no longer starts with a digit, so a photo
-      // whose top line is the metre count loses it.
-      const opening = `</s><s> ${line('4559m', 100, 50, 400, 110)}${line('2:44.5', 100, 140, 400, 200)}${line('ave', 400, 140, 700, 160)}</s>`
-
-      expect(succeeded(opening).distanceM).toBe(4559)
     })
 
     it('reads a unit the model spaced off its number', () => {
@@ -184,23 +189,23 @@ describe('parseMonitorReading', () => {
     it('does not take a value out of the middle of a word', () => {
       // `Row 2000m` is a workout's name, not its result. Only a line that
       // *starts* with digits is a number the monitor is reporting.
-      const named =
-        line('Row 2000', 100, 50, 400, 110) +
-        line('m', 400, 50, 500, 70) +
-        line('2:44.5', 100, 150, 400, 210) +
-        line('ave', 400, 150, 500, 170)
-
+      const named = [
+        line('Row 2000', 100, 50, 400, 110),
+        line('m', 400, 50, 500, 70),
+        line('2:44.5', 100, 150, 400, 210),
+        line('ave', 400, 150, 500, 170),
+      ]
       expect(failed(named).reason).toBe('badNumbers')
     })
 
-    it('fails with noText on a reply holding no digits at all', () => {
+    it('fails with noText on a reading holding no digits at all', () => {
       expect(failed(screen(['Units', ''], ['Menu', ''])).reason).toBe('noText')
-      expect(failed('').reason).toBe('noText')
-      expect(failed('a rowing machine, unread').reason).toBe('noText')
+      expect(failed([]).reason).toBe('noText')
+      expect(failed([line('a rowing machine, unread', 100, 50, 400, 110)]).reason).toBe('noText')
     })
 
     it('carries its tag, so one catchTags can tell it from a db failure', () => {
-      expect(failed('')._tag).toBe('Training.MonitorPhotoError')
+      expect(failed([])._tag).toBe('Training.MonitorPhotoError')
     })
   })
 
@@ -231,14 +236,14 @@ describe('parseMonitorReading', () => {
       // Cutting the labels into words costs the `500` its `m`; the pace rule
       // has to know a bare `500` or the distance rule claims the `m` that is
       // left over.
-      const spaced =
-        line('2:30', 100, 50, 400, 110) +
-        line('/500 m', 400, 70, 520, 90) +
-        line('4559', 100, 150, 400, 210) +
-        line('m', 400, 150, 500, 170) +
-        line('2:44.5', 100, 250, 400, 310) +
-        line('ave', 400, 250, 500, 270)
-
+      const spaced = [
+        line('2:30', 100, 50, 400, 110),
+        line('/500 m', 400, 70, 520, 90),
+        line('4559', 100, 150, 400, 210),
+        line('m', 400, 150, 500, 170),
+        line('2:44.5', 100, 250, 400, 310),
+        line('ave', 400, 250, 500, 270),
+      ]
       expect(succeeded(spaced).distanceM).toBe(4559)
     })
 
@@ -275,26 +280,33 @@ describe('parseMonitorReading', () => {
     it('reads the labels to the right of a value, not the ones to its left', () => {
       // `ave` printed left of the metre count would turn 4559 metres into a
       // 4559 second average split, and leave the row with no distance.
-      const mirrored =
-        line('ave /500m', 100, 50, 300, 70) +
-        line('4559', 320, 50, 620, 110) +
-        line('m', 620, 50, 700, 70) +
-        line('2:44.5', 320, 150, 620, 210) +
-        line('ave', 620, 150, 700, 170)
-
+      const mirrored = [
+        line('ave /500m', 100, 50, 300, 70),
+        line('4559', 320, 50, 620, 110),
+        line('m', 620, 50, 700, 70),
+        line('2:44.5', 320, 150, 620, 210),
+        line('ave', 620, 150, 700, 170),
+      ]
       expect(succeeded(mirrored).distanceM).toBe(4559)
     })
 
-    it('reads only labels clear of the value’s right edge', () => {
-      // A box that straddles the number is a misread, not a unit beside it.
-      const straddled =
-        line('4559', 100, 50, 400, 110) +
-        line('ave', 350, 50, 500, 70) +
-        line('m', 500, 50, 600, 70) +
-        line('2:44.5', 100, 150, 400, 210) +
-        line('ave', 400, 150, 500, 170)
-
-      expect(succeeded(straddled).distanceM).toBe(4559)
+    it('reads a label whose box overlaps the number’s own', () => {
+      // Measured centre to centre, not edge to edge. A detector pads every
+      // box it finds, so the `m` of `4559 m` starts a few pixels left of
+      // where the number's box ends — on an edge test the distance loses its
+      // unit and the photo fails. The `ave` below overlaps the same way and
+      // is read the same way, which is the trade: a label sitting over the
+      // *right half* of a number is taken as beside it.
+      const overlapping = [
+        line('4559', 100, 50, 400, 110),
+        line('ave', 350, 50, 500, 70),
+        line('m', 500, 50, 600, 70),
+        line('2:44.5', 100, 150, 400, 210),
+        line('ave', 400, 150, 500, 170),
+      ]
+      // `ave` wins the row over `m`, so the metre count is filed as a split
+      // and the photo comes back unread rather than wrong.
+      expect(failed(overlapping).reason).toBe('badNumbers')
     })
 
     it('reads only the labels on the value’s own line', () => {
@@ -302,14 +314,14 @@ describe('parseMonitorReading', () => {
       // the metre count starts and the one below starts exactly where it
       // ends; both belong to their own row, and either one claiming this
       // value would file 4559 metres as a split time.
-      const stacked =
-        line('ave', 400, 30, 500, 50) +
-        line('4559', 100, 50, 400, 110) +
-        line('m', 400, 50, 500, 70) +
-        line('ave', 400, 110, 500, 130) +
-        line('2:44.5', 100, 150, 400, 210) +
-        line('ave', 400, 150, 500, 170)
-
+      const stacked = [
+        line('ave', 400, 30, 500, 50),
+        line('4559', 100, 50, 400, 110),
+        line('m', 400, 50, 500, 70),
+        line('ave', 400, 110, 500, 130),
+        line('2:44.5', 100, 150, 400, 210),
+        line('ave', 400, 150, 500, 170),
+      ]
       expect(succeeded(stacked)).toEqual({
         distanceM: 4559,
         durationMs: 1_500_000,
@@ -477,11 +489,58 @@ describe('parseMonitorReading', () => {
   })
 })
 
-describe('MONITOR_PHOTO_TASK', () => {
-  it('asks for boxes, not just text', () => {
-    // The parser tells a metre count from a `/500m` label by where the two
-    // sit and how tall they are. A plain `<OCR>` reply carries neither, and
-    // the whole layout half of this file would be reading a flat string.
-    expect(MONITOR_PHOTO_TASK).toBe('<OCR_WITH_REGION>')
+describe('what the reading is believed about', () => {
+  it('ignores a line the recogniser was unsure of', () => {
+    // A photographed erg is not a page: the frame and the six rubber buttons
+    // come back as text too. This one would otherwise be a 4 metre row.
+    const withNoise = [
+      ...screen(['4559', 'm'], ['2:44.5', 'ave /500m']),
+      line('4', 800, 50, 900, 110, 0.2),
+      line('m', 900, 50, 950, 70, 0.2),
+    ]
+
+    expect(succeeded(withNoise).distanceM).toBe(4559)
+  })
+
+  it('does not let an unsure line set the scale every value is measured against', () => {
+    // The worse half of the same problem: a button read as a digit at twice
+    // the height of anything on the screen puts *every* real value under the
+    // half-height line, and the photo fails for having no values on it.
+    const withTallNoise = [
+      ...screen(['4559', 'm'], ['2:44.5', 'ave /500m']),
+      line('8', 800, 0, 900, 400, 0.2),
+    ]
+
+    expect(succeeded(withTallNoise).distanceM).toBe(4559)
+  })
+})
+
+describe('a field a value could not be', () => {
+  it('leaves the field open rather than filling it with a value that cannot be one', () => {
+    // What the previous model did to the close photo, exactly: the `s/m`
+    // beside the stroke rate reads as a bare `m`, so the `:00` beside it
+    // claims the distance. Filed first-come, that claim also *holds* the
+    // field, and the 4559 two rows down never lands.
+    const mislabelled = [
+      line(':00', 100, 50, 400, 110),
+      line('m', 400, 50, 500, 70),
+      ...screen(['4559', 'm'], ['2:44.5', 'ave /500m']).map((read) => ({
+        ...read,
+        top: read.top + 200,
+        bottom: read.bottom + 200,
+      })),
+    ]
+
+    expect(succeeded(mislabelled).distanceM).toBe(4559)
+  })
+
+  it('holds it against a split that is no clock and a rate that is no rate', () => {
+    // Same rule, other fields: neither reading is one the field could hold,
+    // so neither is filed and the row falls back on what is left.
+    expect(succeeded(photo({ distance: '2000', time: '7:00', avgSplit: '9:99' }))).toEqual({
+      distanceM: 2000,
+      durationMs: 420_000,
+      consistent: true,
+    })
   })
 })
