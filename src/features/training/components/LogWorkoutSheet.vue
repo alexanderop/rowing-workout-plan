@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAtomSet } from '@effect/atom-vue'
 import { Effect, Result } from 'effect'
+import { Camera } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AtomButton from '@/components/atoms/AtomButton.vue'
@@ -17,8 +18,10 @@ import type { WorkoutDraft } from '@/db'
 import { dbMutation, logWorkout } from '@/db'
 import type { NumericInputOptions } from '@/lib/numericInput'
 import { useToastStore } from '@/stores/toast'
+import type { MonitorReading } from '../monitorPhoto'
 import type { PaceRangeError } from '../pace'
 import { formatSplit, splitFor, wattsFromSplit } from '../pace'
+import { useMonitorPhotoScan } from '../useMonitorPhotoScan'
 
 /**
  * Typing a workout in off the monitor — the whole product until Bluetooth
@@ -35,6 +38,13 @@ import { formatSplit, splitFor, wattsFromSplit } from '../pace'
  * in, so there is no such thing here as a malformed entry — `42:7` cannot be
  * expressed — and the two errors left are the ones a well-formed number can
  * still be: missing, or zero.
+ *
+ * The photo scan is a third way to *fill* the fields, never a way past them:
+ * an on-device vision model reads a photo of the monitor and prefills the
+ * same three numbers, which sit in the same form, under the same live
+ * readout, behind the same Save. A model that misreads a digit produces a
+ * wrong number the rower is still looking at — not a wrong row already
+ * written down.
  */
 
 const { planSessionId, distanceM } = defineProps<{
@@ -67,10 +77,62 @@ const rate = ref(0)
 // In-flight guard: a double-tap on Save would otherwise log the row twice.
 const isSaving = ref(false)
 
+const photoInput = ref<HTMLInputElement | null>(null)
+// A scan can take minutes and the sheet outlives it: mounted for the life of
+// the screen, closed and reopened between. Bumped on every open *and* close,
+// so a scan started in an earlier sheet session finds its number stale and
+// drops its reading instead of overwriting a fresh draft.
+const scanSession = ref(0)
+const { status: scanStatus, scan } = useMonitorPhotoScan()
+const isScanning = computed(() => scanStatus.value !== 'idle')
+
+const scanStatusText = computed(() =>
+  scanStatus.value === 'loadingModel'
+    ? t('logSheet.photo.loadingModel')
+    : scanStatus.value === 'reading'
+      ? t('logSheet.photo.reading')
+      : '',
+)
+
+/**
+ * The reading lands in the fields, not in the database — see the component
+ * comment. An inconsistent reading (the photo's time and split disagree, so
+ * the model misread one of them) still lands, time winning, but the toast
+ * says to check rather than that it worked.
+ */
+function applyReading(reading: MonitorReading | undefined): void {
+  if (reading === undefined) {
+    toast.showToast(t('logSheet.photo.failed'))
+    return
+  }
+
+  distance.value = reading.distanceM
+  duration.value = reading.durationMs
+  rate.value = reading.avgRate ?? 0
+  toast.showToast(reading.consistent ? t('logSheet.photo.filled') : t('logSheet.photo.check'))
+}
+
+async function handlePhotoFile(event: Event): Promise<void> {
+  // SAFETY: bound to `<input type="file">`'s own change event in this
+  // component's template, so the target is that input.
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // Cleared so picking the same photo again re-fires `change`.
+  input.value = ''
+  if (!file) return
+
+  const session = scanSession.value
+  const reading = await scan(file)
+  // A reading from a closed or reopened sheet is silently dropped: no toast,
+  // no field writes — the draft it was meant for no longer exists.
+  if (session === scanSession.value) applyReading(reading)
+}
+
 // Prefilled on open rather than on mount: the sheet is mounted for the life
 // of the screen and opened repeatedly, and last time's draft is not what
 // "log a row" should show.
 watch(open, (isOpen) => {
+  scanSession.value += 1
   if (!isOpen) return
   distance.value = distanceM ?? 0
   duration.value = 0
@@ -203,6 +265,31 @@ async function save(): Promise<void> {
       </MoleculeDialogHeader>
 
       <form class="flex flex-col gap-4" @submit.prevent="save">
+        <div class="flex flex-col gap-2">
+          <AtomButton
+            type="button"
+            variant="outline"
+            :disabled="isScanning"
+            @click="photoInput?.click()"
+          >
+            <Camera />
+            {{ t('logSheet.photo.scan') }}
+          </AtomButton>
+          <!-- eslint-disable-next-line vue/no-restricted-html-elements -- Same case as the backup import in SettingsView: a file input has no string value for AtomInput's `defineModel<string>` to bind, and this one is `hidden` anyway, driven entirely by the button above it. -->
+          <input
+            ref="photoInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="handlePhotoFile"
+          />
+          <!-- aria-live so the switch from "downloading" to "reading" is
+               announced — the whole wait can be minutes on first use. -->
+          <p v-if="isScanning" aria-live="polite" class="text-center text-sm text-muted-foreground">
+            {{ scanStatusText }}
+          </p>
+        </div>
+
         <MoleculeNumberField
           id="log-distance"
           v-model="distance"

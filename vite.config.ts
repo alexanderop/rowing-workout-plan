@@ -38,6 +38,13 @@ export default defineConfig({
         display: 'standalone',
       },
       workbox: {
+        // The vision model runtime — the `ai` chunk (see build.rollupOptions)
+        // and the onnxruntime wasm binary it carries — is tens of megabytes
+        // and loaded only when someone scans a monitor photo. Precaching it
+        // would make every fresh install download it up front (and the wasm
+        // alone breaks workbox's 2 MiB precache ceiling); the
+        // StaleWhileRevalidate rule below still caches the chunk on first use.
+        globIgnores: ['**/ai-*.js', '**/ort-*.wasm'],
         runtimeCaching: [
           {
             // `sameOrigin` is load-bearing, not tidiness: a cross-origin
@@ -65,6 +72,20 @@ export default defineConfig({
               expiration: { maxEntries: 100, maxAgeSeconds: 60 * 24 * 60 * 60 },
             },
           },
+          {
+            // The onnxruntime wasm behind the photo scan, excluded from the
+            // precache above. It arrives via plain fetch(), whose `destination`
+            // is the empty string, so the static-resources rule above never
+            // matches it — without this rule a scan that worked once still
+            // re-downloads 20+ MB on the next visit, and offline never works.
+            // Same-origin only, like everything here.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.endsWith('.wasm'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ai-wasm',
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 24 * 60 * 60 },
+            },
+          },
         ],
       },
       devOptions: {
@@ -72,6 +93,23 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Everything behind the lazy `import('@huggingface/transformers')` in
+        // src/lib/monitorPhotoModel.ts lands in one chunk named `ai`, so the
+        // size-limit entry in package.json and the workbox ignore above can
+        // both address it by name instead of chasing hashed module names.
+        manualChunks: (id) =>
+          id.includes('@huggingface/transformers') || id.includes('onnxruntime') ? 'ai' : undefined,
+      },
+    },
+  },
+  // Prebundling would pull the whole model runtime into the dev graph on
+  // startup; it is dynamically imported and esbuild mangles its wasm loading.
+  optimizeDeps: {
+    exclude: ['@huggingface/transformers'],
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('src', import.meta.url)),

@@ -201,6 +201,14 @@ export default {
     result: '{split} /500m · {watts} W',
     missingDistance: 'Add the distance to work out your split',
     missingTime: 'Add the time to work out your split',
+    photo: {
+      scan: 'Fill in from a photo',
+      loadingModel: 'Downloading the reader — first time only, this can take a while',
+      reading: 'Reading the photo…',
+      filled: 'Filled in from your photo — check it before saving',
+      check: 'Filled in — but the time and split on the photo disagree, check the monitor',
+      failed: 'Could not read that photo — type the numbers in',
+    },
     toast: {
       saved: 'Workout logged',
       saveFailed: 'That workout could not be saved',

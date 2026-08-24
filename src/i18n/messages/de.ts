@@ -186,6 +186,14 @@ const de: MessageSchema = {
     result: '{split} /500m · {watts} W',
     missingDistance: 'Ergänze die Distanz, um deinen Split zu berechnen',
     missingTime: 'Ergänze die Zeit, um deinen Split zu berechnen',
+    photo: {
+      scan: 'Aus einem Foto ausfüllen',
+      loadingModel: 'Lade den Foto-Leser herunter — nur beim ersten Mal, das kann dauern',
+      reading: 'Foto wird gelesen …',
+      filled: 'Aus deinem Foto ausgefüllt — prüfe es vor dem Speichern',
+      check: 'Ausgefüllt — aber Zeit und Split auf dem Foto widersprechen sich, prüfe den Monitor',
+      failed: 'Dieses Foto ließ sich nicht lesen — tippe die Zahlen ein',
+    },
     toast: {
       saved: 'Einheit eingetragen',
       saveFailed: 'Diese Einheit konnte nicht gespeichert werden',

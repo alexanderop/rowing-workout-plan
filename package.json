@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@effect/atom-vue": "catalog:frontend",
+    "@huggingface/transformers": "catalog:frontend",
     "@lucide/vue": "catalog:ui",
     "@tailwindcss/vite": "catalog:ui",
     "@vueuse/core": "catalog:frontend",
@@ -111,8 +112,16 @@
   "size-limit": [
     {
       "name": "production JavaScript",
-      "path": "dist/assets/*.js",
+      "path": [
+        "dist/assets/*.js",
+        "!dist/assets/ai-*.js"
+      ],
       "limit": "210 kB"
+    },
+    {
+      "name": "vision-model runtime (lazy, photo scan only)",
+      "path": "dist/assets/ai-*.js",
+      "limit": "1.6 MB"
     }
   ],
   "lint-staged": {

@@ -23,7 +23,14 @@ describe('touch number entry', () => {
 
     const dialog = screen.sheet.anyDialog.element()
 
-    expect([...dialog.querySelectorAll('input, textarea, [contenteditable]')]).toEqual([])
+    // A file input is the one exemption, the same one SettingsView's backup
+    // import carries: picking a photo opens the OS picker, never a keyboard,
+    // and the input itself stays hidden behind the button that drives it.
+    expect([
+      ...dialog.querySelectorAll('input:not([type="file"]), textarea, [contenteditable]'),
+    ]).toEqual([])
+    for (const picker of dialog.querySelectorAll('input[type="file"]'))
+      expect(picker.checkVisibility()).toBe(false)
   })
 
   it('enters a whole workout without a keyboard ever appearing', async ({ log }) => {
@@ -33,6 +40,6 @@ describe('touch number entry', () => {
     await screen.sheet.fill({ distance: '10000', time: '42:00' })
 
     await screen.sheet.expectResult('2:06.0 /500m · 175 W')
-    expect([...document.querySelectorAll('input')]).toEqual([])
+    expect([...document.querySelectorAll('input:not([type="file"])')]).toEqual([])
   })
 })

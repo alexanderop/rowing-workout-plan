@@ -15,6 +15,10 @@ catalogs:
     vue-tsc: ^3.3.7
     workbox-window: ^7.4.1
   frontend:
+    # The in-browser vision model behind "scan the monitor" (src/lib/monitorPhotoModel.ts).
+    # Loaded lazily and kept out of the app-shell budget — see the `ai` chunk in
+    # vite.config.ts and the second size-limit entry in package.json.
+    '@huggingface/transformers': ^4.2.0
     # Pinned exactly — ~/Projects/opensource/effect is checked out at this version
     # (branch pinned/4.0.0-beta.105) as the agent-readable source of truth.
     # @effect/atom-vue is versioned in lockstep with effect and must move with it.
