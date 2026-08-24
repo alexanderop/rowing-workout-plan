@@ -5,6 +5,7 @@ import { Camera } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AtomButton from '@/components/atoms/AtomButton.vue'
+import AtomProgress from '@/components/atoms/AtomProgress.vue'
 import MoleculeNumberField from '@/components/molecules/MoleculeNumberField.vue'
 import {
   MoleculeDialog,
@@ -13,6 +14,7 @@ import {
   MoleculeDialogHeader,
   MoleculeDialogTitle,
 } from '@/components/molecules/dialog'
+import { useLocale } from '@/composables/useLocale'
 import { useReportFailure } from '@/composables/useReportFailure'
 import type { WorkoutDraft } from '@/db'
 import { dbMutation, logWorkout } from '@/db'
@@ -83,7 +85,7 @@ const photoInput = ref<HTMLInputElement | null>(null)
 // so a scan started in an earlier sheet session finds its number stale and
 // drops its reading instead of overwriting a fresh draft.
 const scanSession = ref(0)
-const { status: scanStatus, scan } = useMonitorPhotoScan()
+const { status: scanStatus, progress: scanProgress, downloaded, scan } = useMonitorPhotoScan()
 const isScanning = computed(() => scanStatus.value !== 'idle')
 
 const scanStatusText = computed(() =>
@@ -93,6 +95,53 @@ const scanStatusText = computed(() =>
       ? t('logSheet.photo.reading')
       : '',
 )
+
+// Built from the locale rather than from a message, and `computed` so a
+// locale change rebuilds them — an Intl formatter captures its locale when
+// it is constructed. Same rule as useTrainingFormat.
+const { locale } = useLocale()
+const percentFormat = computed(() => new Intl.NumberFormat(locale.value, { style: 'percent' }))
+// Whole megabytes for the weights, which is what the wait is made of, but
+// enough precision left over that the kilobytes of config downloaded first
+// do not both round to "0 MB of 0 MB". `morePrecision` is what lets one
+// formatter say 360 MB and 0.32 MB without a branch choosing between them.
+const megabyteFormat = computed(
+  () =>
+    new Intl.NumberFormat(locale.value, {
+      style: 'unit',
+      unit: 'megabyte',
+      maximumFractionDigits: 0,
+      maximumSignificantDigits: 2,
+      roundingPriority: 'morePrecision',
+    }),
+)
+const BYTES_PER_MEGABYTE = 1_000_000
+
+/**
+ * The number under the bar: how far, and — while the weights are coming down
+ * — how far out of how much, because "this can take a while" means something
+ * different at 12 MB than at 215 MB. Empty while the bar is indeterminate,
+ * so nothing claims a precision that is not there.
+ *
+ * Deliberately outside the `aria-live` region above it: this changes many
+ * times a second, and a screen reader reading every value of it would drown
+ * out the two announcements that matter. The bar's own `aria-valuenow`
+ * carries the same number, on demand rather than shouted.
+ */
+const scanProgressText = computed(() => {
+  if (scanProgress.value === null) return ''
+
+  const percent = percentFormat.value.format(scanProgress.value)
+  const bytes = downloaded.value
+  if (bytes === null) return percent
+
+  const megabytes = (value: number) => megabyteFormat.value.format(value / BYTES_PER_MEGABYTE)
+  return t('logSheet.photo.downloaded', {
+    percent,
+    loaded: megabytes(bytes.loaded),
+    total: megabytes(bytes.total),
+  })
+})
 
 /**
  * The reading lands in the fields, not in the database — see the component
@@ -283,11 +332,25 @@ async function save(): Promise<void> {
             class="hidden"
             @change="handlePhotoFile"
           />
-          <!-- aria-live so the switch from "downloading" to "reading" is
-               announced — the whole wait can be minutes on first use. -->
-          <p v-if="isScanning" aria-live="polite" class="text-center text-sm text-muted-foreground">
-            {{ scanStatusText }}
-          </p>
+          <div v-if="isScanning" class="flex flex-col gap-1.5">
+            <!-- aria-live so the switch from "downloading" to "reading" is
+                 announced — the whole wait can be minutes on first use. -->
+            <p aria-live="polite" class="text-center text-sm text-muted-foreground">
+              {{ scanStatusText }}
+            </p>
+            <AtomProgress
+              :model-value="scanProgress"
+              :max="1"
+              :aria-label="scanStatusText"
+              class="h-1.5"
+            />
+            <p
+              v-if="scanProgressText"
+              class="text-center text-xs tabular-nums text-muted-foreground"
+            >
+              {{ scanProgressText }}
+            </p>
+          </div>
         </div>
 
         <MoleculeNumberField

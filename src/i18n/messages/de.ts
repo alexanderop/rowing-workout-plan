@@ -190,6 +190,7 @@ const de: MessageSchema = {
       scan: 'Aus einem Foto ausfüllen',
       loadingModel: 'Lade den Foto-Leser herunter — nur beim ersten Mal, das kann dauern',
       reading: 'Foto wird gelesen …',
+      downloaded: '{percent} · {loaded} von {total}',
       filled: 'Aus deinem Foto ausgefüllt — prüfe es vor dem Speichern',
       check: 'Ausgefüllt — aber Zeit und Split auf dem Foto widersprechen sich, prüfe den Monitor',
       failed: 'Dieses Foto ließ sich nicht lesen — tippe die Zahlen ein',

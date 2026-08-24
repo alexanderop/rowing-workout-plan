@@ -205,6 +205,7 @@ export default {
       scan: 'Fill in from a photo',
       loadingModel: 'Downloading the reader — first time only, this can take a while',
       reading: 'Reading the photo…',
+      downloaded: '{percent} · {loaded} of {total}',
       filled: 'Filled in from your photo — check it before saving',
       check: 'Filled in — but the time and split on the photo disagree, check the monitor',
       failed: 'Could not read that photo — type the numbers in',
